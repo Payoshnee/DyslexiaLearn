@@ -13,7 +13,7 @@ import {
   Row,
   Col,
 } from "reactstrap";
-import { auth, provider, signInWithPopup } from "../../api";
+import { auth, provider, signInWithPopup, hasFirebaseConfig } from "../../api";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
@@ -24,6 +24,11 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
+    if (!hasFirebaseConfig) {
+      setError("Google sign-in is not configured yet.");
+      return;
+    }
+
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -31,6 +36,7 @@ const Login = () => {
       navigate("/admin/index");
     } catch (error) {
       console.error("Google Sign-In Error:", error.message);
+      setError("Google sign-in failed. Please try email and password.");
     }
   };
 
@@ -73,6 +79,7 @@ const Login = () => {
             <Button
               className="btn-neutral btn-icon"
               color="default"
+              disabled={!hasFirebaseConfig}
               onClick={handleGoogleSignIn}
             >
               <span className="btn-inner--icon">
