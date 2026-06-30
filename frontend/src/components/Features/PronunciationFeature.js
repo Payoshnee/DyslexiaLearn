@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Volume2, Mic, MicOff, RefreshCw, Star } from "lucide-react";
-import { Button, Row, Col } from "reactstrap";
+import { Button } from "reactstrap";
 
 const WORDS = ["Elephant", "Butterfly", "Dinosaur", "Strawberry", "Sunshine"];
 

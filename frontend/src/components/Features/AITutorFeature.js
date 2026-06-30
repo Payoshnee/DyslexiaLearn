@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Bot, User, Sparkles } from "lucide-react";
-import { Card, CardHeader, CardBody, Input, Button, Row, Col } from "reactstrap";
+import { Send, Bot, Sparkles } from "lucide-react";
+import { Card, CardHeader, CardBody, Input, Button } from "reactstrap";
 
 const AITutorFeature = () => {
   const [messages, setMessages] = useState([

@@ -1,7 +1,7 @@
 import React from "react";
 import { Container, Card, CardBody, Table } from "reactstrap";
 import { motion } from "framer-motion";
-import { Award, Medal } from "lucide-react";
+import { Award } from "lucide-react";
 
 const LEADERBOARD_DATA = [
   { rank: 1, name: "Demo Student", score: 1250, badge: "🥇" },

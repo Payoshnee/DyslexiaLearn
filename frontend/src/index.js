@@ -10,7 +10,6 @@ import "assets/css/child-theme.css";
 import AdminLayout from "layouts/Admin.js";
 import AuthLayout from "layouts/Auth.js";
 import Home from "views/Home.js";
-import Login from "../src/views/examples/Login.js"; // Import your Home component
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -29,4 +28,3 @@ root.render(
     </Routes>
   </BrowserRouter>
 );
-
