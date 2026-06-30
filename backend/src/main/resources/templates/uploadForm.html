@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Speech File</title>
+</head>
+<body>
+    <h2>Upload Speech File for Transcription</h2>
+    <form action="/speech-to-text" method="POST" enctype="multipart/form-data">
+        <label for="file">Choose file:</label>
+        <input type="file" name="file" id="file" accept="audio/*" required>
+        <button type="submit">Upload and Convert</button>
+    </form>
+
+    <!-- Display the result message if available -->
+    <p th:text="${message}"></p>
+</body>
+</html>
