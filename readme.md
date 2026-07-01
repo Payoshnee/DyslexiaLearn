@@ -102,6 +102,7 @@ You can host this entire stack online completely for free using the following pl
 - Connect your repository and select the `backend` folder.
 - Build Command: `mvn clean install -DskipTests`
 - Start Command: `java -jar target/DyslexiLearn-0.0.1-SNAPSHOT.jar`
+- Render free web services can spin down after inactivity. To reduce cold starts, add a GitHub repository secret named `RENDER_BACKEND_URL` with your backend URL, for example `https://your-service.onrender.com`. The included `.github/workflows/keep-render-awake.yml` workflow pings `/health` every 10 minutes.
 
 ### 3. Frontend -> **Vercel** or **Netlify**
 - Create a free account on [Vercel](https://vercel.com/).
