@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios"; // Import axios
+import { API_BASE_URL } from "../../../config";
 
 // reactstrap components
 import { Card, Container, Row, Button, Col } from "reactstrap";
@@ -49,7 +50,7 @@ const FlashcardDashboard = () => {
 
   useEffect(() => {
     axios
-      .get(`${process.env.REACT_APP_BACKEND_URL}/api/flashcards`)
+      .get(`${API_BASE_URL}/api/flashcards`)
       .then((response) => {
         setFlashcards(response.data);
         setLoading(false);
