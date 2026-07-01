@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Send, Bot, Sparkles } from "lucide-react";
 import { Card, CardHeader, CardBody, Input, Button } from "reactstrap";
+import { API_BASE_URL } from "../../config";
 
 const AITutorFeature = () => {
   const [messages, setMessages] = useState([
@@ -20,7 +21,7 @@ const AITutorFeature = () => {
 
     try {
       const preferredModel = localStorage.getItem("preferred_model") || "llama3:8b";
-      const response = await fetch("http://localhost:8080/api/ai/rag/ask", {
+      const response = await fetch(`${API_BASE_URL}/api/ai/rag/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

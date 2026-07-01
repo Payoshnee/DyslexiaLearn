@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, Save, CheckCircle, Database } from "lucide-react";
+import { AI_SERVICE_URL } from "../../config";
 
 const SettingsModal = ({ isOpen, onClose }) => {
   const [selectedModel, setSelectedModel] = useState("llama3:8b");
@@ -36,7 +37,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
     formData.append("file", file);
 
     try {
-      const response = await fetch("http://localhost:8000/api/ingest", {
+      const response = await fetch(`${AI_SERVICE_URL}/api/ingest`, {
         method: "POST",
         body: formData,
       });
