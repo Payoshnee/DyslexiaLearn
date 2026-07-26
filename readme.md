@@ -20,7 +20,7 @@
 
 DyslexiaLearn is built using a modern 3-tier microservice architecture:
 - **Frontend**: React.js (with Framer Motion for beautiful animations and Reactstrap for UI components).
-- **Backend Core**: Java Spring Boot (handles user authentication, PostgreSQL database interaction, and routes AI requests).
+- **Backend Core**: Python FastAPI (handles user authentication, PostgreSQL database interaction, and routes AI requests).
 - **AI Microservice**: Python FastAPI (handles document chunking, ChromaDB vector storage, and communicates with Ollama for local LLM inference).
 - **Database**: PostgreSQL (containerized via Docker) storing user credentials and progress.
 
@@ -34,7 +34,6 @@ We've provided automated setup scripts for both Mac/Linux and Windows that will 
 Before running the setup script, ensure you have the following installed:
 - [Node.js](https://nodejs.org/) (v16+)
 - [Python 3](https://www.python.org/downloads/) (with `pip`)
-- [Java JDK 17+](https://adoptium.net/) & [Maven](https://maven.apache.org/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (Must be running)
 - [Ollama](https://ollama.com/) (Must be installed and running in the background)
 
@@ -59,10 +58,11 @@ npm start
 ```
 *(Runs on http://localhost:3000)*
 
-**2. Start the Java Backend:**
+**2. Start the FastAPI Backend:**
 ```bash
 cd backend
-mvn spring-boot:run
+source venv/bin/activate
+uvicorn app.main:app --reload --port 8080
 ```
 *(Runs on http://localhost:8080)*
 
@@ -96,12 +96,12 @@ You can host this entire stack online completely for free using the following pl
 - Copy the provided Connection URL.
 - Update `backend/src/main/resources/application.properties` with the new cloud database credentials.
 
-### 2. Java Backend -> **Render** or **Railway**
+### 2. FastAPI Backend -> **Render** or **Railway**
 - Push your code to GitHub.
 - Create a Web Service on [Render](https://render.com/) or [Railway](https://railway.app/).
 - Connect your repository and select the `backend` folder.
-- Build Command: `mvn clean install -DskipTests`
-- Start Command: `java -jar target/DyslexiLearn-0.0.1-SNAPSHOT.jar`
+- Build Command: `pip install -r requirements.txt`
+- Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - Render free web services can spin down after inactivity. To reduce cold starts, add a GitHub repository secret named `RENDER_BACKEND_URL` with your backend URL, for example `https://your-service.onrender.com`. The included `.github/workflows/keep-render-awake.yml` workflow pings `/health` every 10 minutes.
 
 ### 3. Frontend -> **Vercel** or **Netlify**
@@ -112,7 +112,7 @@ You can host this entire stack online completely for free using the following pl
 
 ### 4. AI Service -> **HuggingFace Spaces** or **Google Colab (Ngrok)**
 Running LLMs requires significant RAM/GPU power, which isn't free on typical cloud providers.
-- **Option A (Google Colab)**: You can run the FastAPI and Ollama inside a free Google Colab notebook. Use `ngrok` to expose the port to the public internet, and update your Java backend to point to the Ngrok URL.
+- **Option A (Google Colab)**: You can run the FastAPI and Ollama inside a free Google Colab notebook. Use `ngrok` to expose the port to the public internet, and update your backend to point to the Ngrok URL.
 - **Option B (HuggingFace Spaces)**: Create a Docker Space on [HuggingFace](https://huggingface.co/spaces). You can write a Dockerfile that installs Ollama, pulls the model, and runs your FastAPI script. HuggingFace provides a free 16GB RAM CPU tier which is enough for lightweight models like `qwen:0.5b` or `phi3`.
 
 ---

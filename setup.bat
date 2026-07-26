@@ -30,28 +30,6 @@ if %errorlevel% neq 0 (
     echo [OK] Python is installed.
 )
 
-:: Check Java
-where java >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Java is not installed.
-    echo Please install Java JDK 17 (or higher) from https://adoptium.net/
-    echo Make sure JAVA_HOME is set.
-    exit /b 1
-) else (
-    echo [OK] Java is installed.
-)
-
-:: Check Maven
-where mvn >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Maven (mvn) is not installed.
-    echo Please download and install Apache Maven from https://maven.apache.org/
-    echo Make sure to add it to your system PATH.
-    exit /b 1
-) else (
-    echo [OK] Maven is installed.
-)
-
 :: Check Docker
 where docker >nul 2>nul
 if %errorlevel% neq 0 (
@@ -100,10 +78,15 @@ cd ..
 echo [OK] Frontend setup complete.
 echo.
 
-:: 5. Setup Java Backend
-echo --^> Setting up Java Spring Boot Backend...
+:: 5. Setup FastAPI Backend
+echo --^> Setting up Python FastAPI Backend...
 cd backend
-call mvn clean install -DskipTests
+if not exist "venv" (
+    python -m venv venv
+)
+call venv\Scripts\activate.bat
+pip install -r requirements.txt
+call venv\Scripts\deactivate.bat
 cd ..
 echo [OK] Backend setup complete.
 echo.
@@ -161,6 +144,6 @@ echo ==========================================
 echo.
 echo To start the application, open 3 Command Prompts:
 echo 1. Frontend: cd frontend ^&^& npm start
-echo 2. Backend: cd backend ^&^& mvn spring-boot:run
+echo 2. Backend: cd backend ^&^& venv\Scripts\activate ^&^& uvicorn app.main:app --reload --port 8080
 echo 3. AI Service: cd ai-service ^&^& venv\Scripts\activate ^&^& uvicorn main:app --reload
 pause

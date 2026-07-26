@@ -1,13 +1,13 @@
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM python:3.12-slim
 
 WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 COPY . .
-RUN mvn -DskipTests package
 
-FROM eclipse-temurin:17-jre
-
-WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8080
-CMD ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

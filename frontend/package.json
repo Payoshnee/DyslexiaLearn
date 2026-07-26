@@ -44,6 +44,8 @@
   ],
   "dependencies": {
     "@fortawesome/fontawesome-free": "6.5.1",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "ajv": "^8.16.0",
     "axios": "^1.7.8",
     "bootstrap": "4.6.2",
@@ -62,9 +64,12 @@
     "react-router-dom": "6.21.1",
     "react-scripts": "5.0.1",
     "reactstrap": "8.10.0",
-    "sass": "1.69.5"
+    "sass": "1.69.5",
+    "three": "^0.185.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
     "cross-env": "^7.0.3",
     "gulp": "4.0.2",
     "gulp-append-prepend": "1.0.9"

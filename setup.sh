@@ -35,24 +35,6 @@ else
     echo -e "${GREEN}✓ Python 3 is installed. $(python3 --version)${NC}"
 fi
 
-# Check Java
-if ! command -v java &> /dev/null; then
-    echo -e "${RED}Error: Java is not installed.${NC}"
-    echo "Please install Java JDK 17 (or higher) from https://adoptium.net/"
-    exit 1
-else
-    echo -e "${GREEN}✓ Java is installed.${NC}"
-fi
-
-# Check Maven
-if ! command -v mvn &> /dev/null; then
-    echo -e "${RED}Error: Maven (mvn) is not installed.${NC}"
-    echo "Please install Apache Maven. On Mac: 'brew install maven'"
-    exit 1
-else
-    echo -e "${GREEN}✓ Maven is installed.${NC}"
-fi
-
 # Check Docker
 if ! command -v docker &> /dev/null; then
     echo -e "${RED}Error: Docker is not installed.${NC}"
@@ -110,10 +92,15 @@ cd ..
 echo -e "${GREEN}✓ Frontend setup complete.${NC}"
 echo ""
 
-# 5. Setup Java Backend
-echo "--> Setting up Java Spring Boot Backend..."
+# 5. Setup FastAPI Backend
+echo "--> Setting up Python FastAPI Backend..."
 cd backend || exit
-mvn clean install -DskipTests
+if [ ! -d "venv" ]; then
+    python3 -m venv venv
+fi
+source venv/bin/activate
+pip install -r requirements.txt
+deactivate
 cd ..
 echo -e "${GREEN}✓ Backend setup complete.${NC}"
 echo ""
@@ -178,5 +165,5 @@ echo "=========================================="
 echo ""
 echo "To start the application, you need 3 terminal windows:"
 echo "1. Frontend: cd frontend && npm start"
-echo "2. Backend: cd backend && mvn spring-boot:run"
+echo "2. Backend: cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8080"
 echo "3. AI Service: cd ai-service && source venv/bin/activate && uvicorn main:app --reload"

@@ -1,6 +1,8 @@
 import React from "react";
 import { useLocation, Route, Routes, Navigate } from "react-router-dom";
 import BackgroundVideo from "components/BackgroundVideo/BackgroundVideo.js";
+import CompanionShell from "components/companion/CompanionShell";
+import { CompanionProvider } from "companion/CompanionProvider";
 import routes from "routes.js";
 
 const Admin = (props) => {
@@ -26,7 +28,7 @@ const Admin = (props) => {
   };
 
   return (
-    <>
+    <CompanionProvider>
       <BackgroundVideo />
       <div 
         className="main-content" 
@@ -38,7 +40,8 @@ const Admin = (props) => {
           <Route path="*" element={<Navigate to="/admin/index" replace />} />
         </Routes>
       </div>
-    </>
+      <CompanionShell />
+    </CompanionProvider>
   );
 };
 
