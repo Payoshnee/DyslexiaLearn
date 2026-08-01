@@ -1,6 +1,5 @@
-from typing import Any, List
+from typing import List
 
-import requests
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,16 +11,12 @@ from app.config import get_settings
 from app.database import Base, engine, get_db
 from app.models import Flashcard, User
 from app.schemas import (
-    AIResponse,
     FlashcardCreate,
     FlashcardRead,
     FlashcardUpdate,
     LoginRequest,
     LoginResponse,
     MessageResponse,
-    RAGRequest,
-    SocraticRequest,
-    SynonymRequest,
 )
 from app.seed import seed_database
 
@@ -147,37 +142,3 @@ def delete_flashcard(flashcard_id: int, db: Session = Depends(get_db)) -> str:
     db.commit()
     return "Flashcard deleted successfully!"
 
-
-def post_to_ai(endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
-    request_payload = {key: value for key, value in payload.items() if value is not None}
-    try:
-        response = requests.post(
-            f"{settings.ai_service_url}{endpoint}",
-            json=request_payload,
-            timeout=120,
-        )
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Error communicating with AI service: {exc}",
-        ) from exc
-
-
-@app.post("/api/ai/rag/ask", response_model=AIResponse)
-def ask_rag(payload: RAGRequest) -> AIResponse:
-    ai_result = post_to_ai("/api/rag/ask", payload.model_dump())
-    return AIResponse(answer=ai_result.get("answer") or ai_result.get("response", ""))
-
-
-@app.post("/api/ai/synonym", response_model=AIResponse)
-def get_synonym(payload: SynonymRequest) -> AIResponse:
-    ai_result = post_to_ai("/api/features/synonym", payload.model_dump())
-    return AIResponse(response=ai_result.get("response") or ai_result.get("answer", ""))
-
-
-@app.post("/api/ai/socratic", response_model=AIResponse)
-def socratic_tutor(payload: SocraticRequest) -> AIResponse:
-    ai_result = post_to_ai("/api/features/socratic", payload.model_dump())
-    return AIResponse(response=ai_result.get("response") or ai_result.get("answer", ""))

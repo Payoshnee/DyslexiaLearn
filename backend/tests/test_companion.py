@@ -57,3 +57,272 @@ def test_companion_routes_follow_current_no_auth_convention():
 
     assert response.status_code == 200
     assert response.json()["character"]["state"] == "encouraging"
+
+
+def test_voice_turn_returns_rag_ready_payload():
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={
+            "transcript": "help me say pronunciation",
+            "learnerName": "Demo",
+            "learnerAge": 8,
+            "doodleId": "nova",
+            "doodleName": "Nova",
+            "language": "auto",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "pronunciation_help"
+    assert data["teachingBoard"]["word"] == "pronunciation"
+    assert data["stateSequence"]
+    assert data["memoryUpdate"]["future_pipeline"] == "local_stt_translation_rag_tts"
+
+
+def test_pronunciation_help_uses_learner_name_and_target_word():
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={
+            "transcript": "Help me pronounce elephant",
+            "learnerName": "Himanshu",
+            "learnerAge": 8,
+            "doodleId": "nova",
+            "doodleName": "Nova",
+            "language": "auto",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "pronunciation_help"
+    assert data["teachingBoard"]["word"] == "elephant"
+    assert data["teachingBoard"]["syllables"] == ["el", "e", "phant"]
+    assert data["teachingBoard"]["focusIndex"] == 0
+    assert data["teachingBoard"]["focusSyllable"] == "el"
+    assert data["responseText"].startswith("Himanshu, let us practice elephant.")
+    assert "Hey Nova" not in data["responseText"]
+    assert "nice job" not in data["responseText"].lower()
+
+
+def test_pronunciation_attempt_does_not_restart_lesson():
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={
+            "transcript": "pronunciation",
+            "learnerName": "Demo",
+            "learnerAge": 8,
+            "doodleId": "milo",
+            "doodleName": "Milo",
+            "context": {
+                "currentBoard": {
+                    "type": "syllables",
+                    "word": "pronunciation",
+                    "syllables": ["pro", "nun", "ci", "a", "tion"],
+                }
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "pronunciation_attempt"
+    assert data["teachingBoard"]["word"] == "pronunciation"
+    assert data["memoryUpdate"]["focus"] == "pronunciation_attempt_feedback"
+    assert "pronunciation_score" in data["memoryUpdate"]
+    assert data["teachingBoard"]["score"] >= 0
+
+
+def test_pronunciation_loop_retries_advances_and_stops():
+    context = {
+        "currentBoard": {
+            "type": "syllables",
+            "word": "pronunciation",
+            "syllables": ["pro", "nun", "ci", "a", "tion"],
+            "focusIndex": 0,
+            "focusSyllable": "pro",
+        }
+    }
+
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={
+            "transcript": "rho",
+            "learnerName": "Demo",
+            "learnerAge": 8,
+            "doodleId": "nova",
+            "doodleName": "Nova",
+            "context": context,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["teachingBoard"]["focusIndex"] == 0
+    assert data["teachingBoard"]["focusSyllable"] == "pro"
+    assert "try again" in data["responseText"].lower()
+
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={
+            "transcript": "pro",
+            "learnerName": "Demo",
+            "learnerAge": 8,
+            "doodleId": "nova",
+            "doodleName": "Nova",
+            "context": context,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["teachingBoard"]["focusIndex"] == 1
+    assert data["teachingBoard"]["focusSyllable"] == "nun"
+
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={
+            "transcript": "stop",
+            "learnerName": "Demo",
+            "learnerAge": 8,
+            "doodleId": "nova",
+            "doodleName": "Nova",
+            "context": context,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "stop_practice"
+    assert data["teachingBoard"] is None
+    assert data["stateSequence"][-1] == "idle"
+
+
+def test_quiz_prompt_returns_four_options():
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={
+            "transcript": "quiz me",
+            "learnerName": "Demo",
+            "learnerAge": 8,
+            "doodleId": "nova",
+            "doodleName": "Nova",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "quiz"
+    assert len(data["teachingBoard"]["options"]) == 4
+    assert "Option four" in data["responseText"]
+
+
+def test_quiz_answer_accepts_letter_number_and_full_option():
+    base_payload = {
+        "learnerName": "Demo",
+        "learnerAge": 8,
+        "doodleId": "nova",
+        "doodleName": "Nova",
+        "context": {
+            "currentBoard": {
+                "type": "quiz",
+                "question": "Which strategy helps with a long word?",
+                "options": [
+                    "Say it faster",
+                    "Break it into syllables",
+                    "Skip the tricky sound",
+                    "Guess and move on",
+                ],
+                "correctAnswer": "Break it into syllables",
+            }
+        },
+    }
+
+    for transcript in ["option B", "number two", "Break it into syllables"]:
+        response = client.post(
+            "/api/v1/companion/voice-turn",
+            json={**base_payload, "transcript": transcript},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["intent"] == "quiz"
+        assert data["teachingBoard"]["selectedIndex"] == 1
+        assert data["memoryUpdate"]["quiz_correct"] is True
+
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={**base_payload, "transcript": "option D"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["teachingBoard"]["selectedIndex"] == 3
+    assert data["memoryUpdate"]["quiz_correct"] is False
+
+
+def test_speech_endpoint_returns_audio(monkeypatch, tmp_path):
+    audio_path = tmp_path / "speech.wav"
+    audio_path.write_bytes(b"fake audio")
+
+    def fake_synthesize_speech(**kwargs):
+        return audio_path
+
+    monkeypatch.setattr(
+        "app.api.v1.companion.synthesize_speech",
+        fake_synthesize_speech,
+    )
+
+    response = client.post(
+        "/api/v1/companion/speech",
+        json={
+            "text": "Hi, I am Leo.",
+            "doodleId": "leo",
+            "voiceName": "Alex",
+            "rate": 0.86,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("audio/wav")
+    assert response.content == b"fake audio"
+
+
+def test_stats_request_returns_progress_board():
+    response = client.post(
+        "/api/v1/companion/voice-turn",
+        json={
+            "transcript": "how am I doing show my stats",
+            "learnerName": "Demo",
+            "learnerAge": 8,
+            "doodleId": "leo",
+            "doodleName": "Leo",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] == "stats_request"
+    assert data["teachingBoard"]["type"] == "stats"
+    assert "nextPractice" in data["teachingBoard"]
+
+
+def test_transcribe_endpoint_returns_backend_transcript(monkeypatch):
+    def fake_transcribe_audio(file, suffix=".webm"):
+        assert suffix == ".webm"
+        return {
+            "transcript": "help me pronounce elephant",
+            "language": "en",
+            "duration": 1.2,
+            "source": "faster-whisper",
+        }
+
+    monkeypatch.setattr(
+        "app.api.v1.companion.transcribe_audio",
+        fake_transcribe_audio,
+    )
+
+    response = client.post(
+        "/api/v1/companion/transcribe",
+        files={"file": ("voice-turn.webm", b"fake audio", "audio/webm")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["transcript"] == "help me pronounce elephant"
+    assert data["source"] == "faster-whisper"

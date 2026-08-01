@@ -1,31 +1,50 @@
-import { companionConfig } from "../config/companionConfig";
-import { apiClient } from "./apiClient";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
-function skipWhenDisabled(defaultValue) {
-  if (!companionConfig.enabled) {
-    return Promise.resolve(defaultValue);
+export async function requestVoiceTurn(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/companion/voice-turn`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Voice turn failed with status ${response.status}`);
   }
-  return null;
+
+  return response.json();
 }
 
-export const companionApi = {
-  getPreferences() {
-    return skipWhenDisabled(null) || apiClient.get("/api/v1/companion/preferences");
-  },
+export async function requestSpeechAudio(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/v1/companion/speech`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 
-  updatePreferences(payload) {
-    return skipWhenDisabled(null) || apiClient.put("/api/v1/companion/preferences", payload);
-  },
+  if (!response.ok) {
+    throw new Error(`Speech audio failed with status ${response.status}`);
+  }
 
-  startSession(payload) {
-    return skipWhenDisabled(null) || apiClient.post("/api/v1/companion/sessions", payload);
-  },
+  return response.blob();
+}
 
-  endSession(sessionId) {
-    return skipWhenDisabled(null) || apiClient.post("/api/v1/companion/sessions/end", { sessionId });
-  },
+export async function requestTranscription(audioBlob) {
+  const formData = new FormData();
+  const extension = audioBlob.type.includes("mp4") ? "mp4" : "webm";
+  formData.append("file", audioBlob, `voice-turn.${extension}`);
 
-  respond(payload) {
-    return skipWhenDisabled(null) || apiClient.post("/api/v1/companion/respond", payload);
-  },
-};
+  const response = await fetch(`${API_BASE_URL}/api/v1/companion/transcribe`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Transcription failed with status ${response.status}`);
+  }
+
+  return response.json();
+}

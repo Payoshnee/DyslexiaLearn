@@ -1,149 +1,178 @@
 @echo off
 setlocal enabledelayedexpansion
 
+set ROOT_DIR=%~dp0
+cd /d "%ROOT_DIR%"
+
+if "%OLLAMA_CHAT_MODEL%"=="" set OLLAMA_CHAT_MODEL=qwen2.5:7b-instruct
+if "%OLLAMA_EMBEDDING_MODEL%"=="" set OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+if "%WHISPER_MODEL_SIZE%"=="" set WHISPER_MODEL_SIZE=base.en
+
 echo ==========================================
-echo     DyslexiaLearn Setup Script (Windows)
+echo  DyslexiaLearn Local AI Setup ^(Windows^)
 echo ==========================================
 echo.
 
-:: 1. Check Requirements
-echo --^> Checking System Requirements...
-
-:: Check Node.js
+echo --^> Checking prerequisites
 where node >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js is not installed.
-    echo Please download and install Node.js from https://nodejs.org/
-    exit /b 1
-) else (
-    echo [OK] Node.js is installed.
+if errorlevel 1 (
+  echo [missing] Node.js
+  echo Install from https://nodejs.org/
+  exit /b 1
 )
+echo [ok] node
 
-:: Check Python
 where python >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Python is not installed.
-    echo Please download and install Python from https://www.python.org/downloads/
-    echo Make sure to check "Add Python to PATH" during installation.
-    exit /b 1
-) else (
-    echo [OK] Python is installed.
+if errorlevel 1 (
+  echo [missing] Python
+  echo Install from https://www.python.org/downloads/ and add Python to PATH.
+  exit /b 1
 )
+echo [ok] python
 
-:: Check Docker
+where curl >nul 2>nul
+if errorlevel 1 (
+  echo [missing] curl
+  echo Install curl or use a modern Windows version that includes it.
+  exit /b 1
+)
+echo [ok] curl
+
+where ollama >nul 2>nul
+if errorlevel 1 (
+  echo [missing] Ollama
+  echo Install from https://ollama.com/
+  exit /b 1
+)
+echo [ok] ollama
+
+where piper >nul 2>nul
+if errorlevel 1 (
+  echo [missing] Piper TTS
+  echo Install Piper and add it to PATH so backend speech works.
+  exit /b 1
+)
+echo [ok] piper
+
+where pnpm >nul 2>nul
+if errorlevel 1 (
+  where npm >nul 2>nul
+  if errorlevel 1 (
+    echo [missing] npm
+    echo Install Node.js from https://nodejs.org/
+    exit /b 1
+  )
+  set PACKAGE_MANAGER=npm
+) else (
+  set PACKAGE_MANAGER=pnpm
+)
+echo [ok] frontend package manager: %PACKAGE_MANAGER%
+
 where docker >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Docker is not installed.
-    echo Please install Docker Desktop from https://www.docker.com/products/docker-desktop/
-    exit /b 1
+if errorlevel 1 (
+  set DOCKER_AVAILABLE=0
+  echo [optional missing] docker
+  echo Install Docker Desktop if you want the script to start PostgreSQL.
 ) else (
-    echo [OK] Docker is installed.
+  set DOCKER_AVAILABLE=1
+  echo [ok] docker
 )
 
 echo.
-echo --^> All requirements met! Setting up environments...
-echo.
-
-:: 2. Setup and Start Database via Docker
-echo --^> Starting PostgreSQL Database in Docker...
-cd docker
-docker-compose up -d
-if %errorlevel% neq 0 (
-    docker compose up -d
-)
-echo Waiting for database to be ready...
-timeout /t 5 /nobreak >nul
-cd ..
-echo [OK] Database started successfully.
-echo.
-
-:: 3. Setup Python AI Service
-echo --^> Setting up Python AI Microservice...
-cd ai-service
+echo --^> Installing backend dependencies
+cd /d "%ROOT_DIR%backend"
 if not exist "venv" (
-    python -m venv venv
+  python -m venv venv
 )
 call venv\Scripts\activate.bat
-pip install fastapi uvicorn langchain langchain-community chromadb requests pypdf python-multipart python-dotenv
-call venv\Scripts\deactivate.bat
-cd ..
-echo [OK] AI Service setup complete.
-echo.
-
-:: 4. Setup React Frontend
-echo --^> Setting up React Frontend...
-cd frontend
-call npm install
-cd ..
-echo [OK] Frontend setup complete.
-echo.
-
-:: 5. Setup FastAPI Backend
-echo --^> Setting up Python FastAPI Backend...
-cd backend
-if not exist "venv" (
-    python -m venv venv
-)
-call venv\Scripts\activate.bat
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 call venv\Scripts\deactivate.bat
-cd ..
-echo [OK] Backend setup complete.
+
 echo.
-
-:: 6. Detect System RAM & Select Ollama Model
-echo --^> Checking System Memory for AI Models...
-
-for /f %%a in ('powershell -command "[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)"') do set RAM_GB=%%a
-
-echo Detected RAM: %RAM_GB%GB
-echo.
-echo Select the AI Model to use for DyslexiaLearn:
-echo 1) llama3:8b   (Requires 8GB+ RAM) - Recommended for good PCs
-echo 2) mistral     (Requires 8GB+ RAM) - Alternative to Llama 3
-echo 3) phi3        (Requires 4GB+ RAM) - Recommended for older PCs
-echo 4) qwen:0.5b   (Requires 2GB+ RAM) - Very lightweight, fastest
-echo.
-
-if %RAM_GB% LSS 6 (
-    echo [NOTE] Based on your RAM, we recommend option 3 (phi3) or 4 (qwen:0.5b).
+echo --^> Installing frontend dependencies
+cd /d "%ROOT_DIR%frontend"
+if "%PACKAGE_MANAGER%"=="pnpm" (
+  pnpm install
 ) else (
-    echo [NOTE] Based on your RAM, we recommend option 1 (llama3:8b).
+  npm install
 )
 
 echo.
-set /p MODEL_CHOICE="Enter your choice [1-4] (default 1): "
-
-if "%MODEL_CHOICE%"=="2" (
-    set SELECTED_MODEL=mistral
-) else if "%MODEL_CHOICE%"=="3" (
-    set SELECTED_MODEL=phi3
-) else if "%MODEL_CHOICE%"=="4" (
-    set SELECTED_MODEL=qwen:0.5b
+echo --^> Starting PostgreSQL with Docker, if available
+cd /d "%ROOT_DIR%"
+if "%DOCKER_AVAILABLE%"=="1" (
+  docker compose version >nul 2>nul
+  if errorlevel 1 (
+    docker-compose -f docker\docker-compose.yml up -d
+  ) else (
+    docker compose -f docker\docker-compose.yml up -d
+  )
+  if errorlevel 1 echo [warn] Docker database did not start. Check Docker Desktop.
 ) else (
-    set SELECTED_MODEL=llama3:8b
+  echo [skip] Docker unavailable. Use your own PostgreSQL or update backend\.env.
 )
 
-echo You selected: %SELECTED_MODEL%
-
-echo --^> Saving configuration...
-echo OLLAMA_MODEL=%SELECTED_MODEL%> ai-service\.env
-echo OLLAMA_EMBEDDING_MODEL=nomic-embed-text>> ai-service\.env
-
-echo --^> Pulling required AI Models (This may take a while)...
-echo Pulling %SELECTED_MODEL%...
-ollama pull %SELECTED_MODEL%
-echo Pulling nomic-embed-text...
-ollama pull nomic-embed-text
-echo [OK] AI Models ready.
 echo.
+echo --^> Checking Ollama
+curl -s http://localhost:11434/api/tags >nul 2>nul
+if errorlevel 1 (
+  echo [warn] Ollama is installed but not responding at localhost:11434.
+  echo Start Ollama manually if model pulls fail.
+) else (
+  echo [ok] Ollama is running
+)
 
+echo.
+echo --^> Pulling local AI models
+ollama pull %OLLAMA_CHAT_MODEL%
+if errorlevel 1 echo [warn] Could not pull %OLLAMA_CHAT_MODEL%.
+ollama pull %OLLAMA_EMBEDDING_MODEL%
+if errorlevel 1 echo [warn] Could not pull %OLLAMA_EMBEDDING_MODEL%.
+
+echo.
+echo --^> Downloading Piper voices
+if not exist "backend\tts\voices" mkdir "backend\tts\voices"
+powershell -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference='Stop';" ^
+  "$base='https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0';" ^
+  "$out='backend/tts/voices';" ^
+  "$voices=@(@('en/en_US/lessac/medium','en_US-lessac-medium.onnx'),@('en/en_US/amy/medium','en_US-amy-medium.onnx'),@('en/en_US/ryan/medium','en_US-ryan-medium.onnx'),@('en/en_GB/alan/medium','en_GB-alan-medium.onnx'));" ^
+  "foreach($v in $voices){$url=\"$base/$($v[0])/$($v[1])?download=true\"; $json=\"$url.json\"; Write-Host \"Downloading $($v[1])\"; Invoke-WebRequest -Uri $url -OutFile \"$out/$($v[1])\"; Invoke-WebRequest -Uri $json -OutFile \"$out/$($v[1]).json\";}"
+if errorlevel 1 (
+  echo [warn] Piper voices failed to download. You can rerun setup later.
+)
+
+echo.
+echo --^> Writing backend local environment
+if not exist "backend\.env" copy "backend\.env.example" "backend\.env" >nul
+powershell -ExecutionPolicy Bypass -Command ^
+  "$path='backend/.env';" ^
+  "$embedding='%OLLAMA_EMBEDDING_MODEL%'; if($embedding -notmatch ':'){$embedding=\"$embedding`:latest\"};" ^
+  "$values=@{OLLAMA_CHAT_MODEL='%OLLAMA_CHAT_MODEL%'; OLLAMA_EMBEDDING_MODEL=$embedding; WHISPER_MODEL_SIZE='%WHISPER_MODEL_SIZE%'; TTS_ENGINE='piper'; PIPER_BINARY_PATH='piper'; PIPER_VOICE_DIR='tts/voices'};" ^
+  "$lines=Get-Content $path;" ^
+  "$seen=@{}; $next=@();" ^
+  "foreach($line in $lines){$key=($line -split '=',2)[0]; if($values.ContainsKey($key)){$next += \"$key=$($values[$key])\"; $seen[$key]=$true}else{$next += $line}}" ^
+  "foreach($key in $values.Keys){if(-not $seen.ContainsKey($key)){$next += \"$key=$($values[$key])\"}}" ^
+  "Set-Content -Path $path -Value $next"
+
+echo.
 echo ==========================================
-echo   Setup Complete! You are ready to go.
+echo  Setup complete.
 echo ==========================================
 echo.
-echo To start the application, open 3 Command Prompts:
-echo 1. Frontend: cd frontend ^&^& npm start
-echo 2. Backend: cd backend ^&^& venv\Scripts\activate ^&^& uvicorn app.main:app --reload --port 8080
-echo 3. AI Service: cd ai-service ^&^& venv\Scripts\activate ^&^& uvicorn main:app --reload
+echo Start backend:
+echo   cd backend ^&^& venv\Scripts\activate ^&^& uvicorn app.main:app --reload --port 8080
+echo.
+echo Start frontend:
+if "%PACKAGE_MANAGER%"=="pnpm" (
+  echo   cd frontend ^&^& pnpm dev
+) else (
+  echo   cd frontend ^&^& npm run dev
+)
+echo.
+echo Quality profile:
+echo   WHISPER_MODEL_SIZE=%WHISPER_MODEL_SIZE%
+echo   OLLAMA_CHAT_MODEL=%OLLAMA_CHAT_MODEL%
+echo   TTS_ENGINE=piper
 pause

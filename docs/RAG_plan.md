@@ -44,15 +44,15 @@ Running Ollama locally depends heavily on the system's RAM and VRAM (GPU Memory)
 
 ## Implementation Steps (How we will build it)
 
-### Step 1: Python AI Microservice
-- Create an `ai-service` folder.
-- Set up a Python environment and install `fastapi`, `uvicorn`, `langchain`, `chromadb`, and `langchain-community`.
-- Build endpoints like `/api/ingest` (to upload documents) and `/api/ask` (to run the RAG chain).
+### Step 1: Integrated FastAPI AI Backend
+- Keep the AI/RAG/voice pipeline inside the main `backend/app` FastAPI service.
+- Use the existing `/api/v1/companion/*` endpoints for voice turns, transcription, speech, pronunciation, quiz, stats, and memory.
+- Use Ollama for local LLM and embeddings, PostgreSQL/pgvector for durable retrieval, faster-whisper for local STT, and Piper for local TTS.
 
-### Step 2: Java Backend Integration
-- In your Spring Boot app, create an `AIService` class.
-- Use `RestTemplate` or `WebClient` to make HTTP requests to the Python FastAPI endpoints.
-- Create new endpoints in Java that the React frontend can call securely.
+### Step 2: Backend Integration
+- Route frontend requests directly to the FastAPI companion API.
+- Keep rule-based pronunciation, quiz, and stats flows fast, and call the LLM only when open-ended tutoring or unknown words need reasoning.
+- Store learner memory and retrieved context through the same backend so there is no separate AI microservice to run.
 
 ### Step 3: Frontend (React)
 - Create a beautiful, child-friendly AI Chat interface.

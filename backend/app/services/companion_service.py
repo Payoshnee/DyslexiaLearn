@@ -1,4 +1,7 @@
 from uuid import uuid4
+from typing import Optional
+
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.schemas.companion import (
@@ -8,6 +11,22 @@ from app.schemas.companion import (
     CompanionRespondRequest,
     CompanionResponse,
     CompanionSessionRequest,
+    CompanionTeachingBoard,
+    CompanionVoiceTurnRequest,
+    CompanionVoiceTurnResponse,
+)
+from app.services.rag_service import (
+    build_quiz,
+    build_stats_board,
+    detect_intent,
+    detect_language,
+    extract_pronunciation_word,
+    generate_response,
+    generate_pronunciation_attempt_feedback,
+    remember_turn,
+    retrieve_context,
+    score_pronunciation_attempt,
+    simple_syllables,
 )
 
 settings = get_settings()
@@ -77,4 +96,249 @@ def respond(payload: CompanionRespondRequest) -> CompanionResponse:
             highlighted_index=-1,
         ),
         next_action="wait",
+    )
+
+
+def handle_voice_turn(
+    payload: CompanionVoiceTurnRequest,
+    db: Optional[Session] = None,
+) -> CompanionVoiceTurnResponse:
+    transcript = payload.transcript.strip()
+    intent = detect_intent(transcript)
+    detected_language = detect_language(transcript)
+    current_board = payload.context.get("currentBoard") or {}
+    current_board_type = current_board.get("type")
+    current_word = (current_board.get("word") or "").strip()
+    current_syllables = current_board.get("syllables") or []
+    current_focus_index = current_board.get("focusIndex")
+    if current_focus_index is None:
+        current_focus_index = current_board.get("focus_index")
+    clean_attempt = transcript.lower().strip(" .,!?'\"")
+
+    if intent == "stop_practice":
+        pass
+    elif (
+        current_board_type == "syllables"
+        and current_word
+        and (
+            clean_attempt == current_word.lower()
+            or clean_attempt in [str(syllable).lower() for syllable in current_syllables]
+            or len(transcript.split()) <= 3
+        )
+    ):
+        intent = "pronunciation_attempt"
+    elif current_board_type == "quiz":
+        intent = "quiz"
+
+    context_chunks = []
+    retrieval_source = "mock-rag"
+
+    if db is not None:
+        context_chunks, retrieval_source = retrieve_context(db, transcript)
+
+    response_text = ""
+    generation_source = "local-rules"
+
+    if intent == "stop_practice":
+        teaching_board = None
+        state_sequence = ["processing", "speaking", "idle"]
+        response_text = "Okay, I stopped that practice. Tell me what you want to do next."
+        generation_source = "local-command"
+        memory_update = {
+            "focus": "practice_stopped",
+            "last_transcript": transcript,
+            "retrieved_chunks": [chunk.title for chunk in context_chunks],
+        }
+    elif intent == "pronunciation_attempt":
+        target_word = current_word
+        syllables = [str(syllable) for syllable in current_syllables] or simple_syllables(target_word)
+        try:
+            focus_index = int(current_focus_index)
+        except (TypeError, ValueError):
+            focus_index = 0
+        focus_index = max(0, min(focus_index, len(syllables) - 1))
+        focus_syllable = syllables[focus_index]
+        score = score_pronunciation_attempt(
+            transcript,
+            target_word,
+            syllables,
+            focus_syllable=focus_syllable,
+        )
+
+        if not score["passed"]:
+            response_text = (
+                f"I heard {transcript}. Let us try again. Say {focus_syllable} slowly."
+            )
+            next_focus_index = focus_index
+            next_focus_syllable = focus_syllable
+            teaching_board = CompanionTeachingBoard(
+                type="syllables",
+                word=target_word,
+                syllables=syllables,
+                heard_text=transcript,
+                score=score["score"],
+                passed=False,
+                weak_syllable=focus_syllable,
+                focus_syllable=next_focus_syllable,
+                focus_index=next_focus_index,
+                prompt=f"Try again: {focus_syllable}.",
+            )
+        elif focus_index < len(syllables) - 1:
+            next_focus_index = focus_index + 1
+            next_focus_syllable = syllables[next_focus_index]
+            response_text = (
+                f"I heard {transcript}. Good. Now say {next_focus_syllable} slowly."
+            )
+            teaching_board = CompanionTeachingBoard(
+                type="syllables",
+                word=target_word,
+                syllables=syllables,
+                heard_text=transcript,
+                score=score["score"],
+                passed=False,
+                weak_syllable=next_focus_syllable,
+                focus_syllable=next_focus_syllable,
+                focus_index=next_focus_index,
+                prompt=f"Now repeat {next_focus_syllable} slowly.",
+            )
+        else:
+            response_text = (
+                f"I heard {transcript}. Great work. You completed {target_word}."
+            )
+            teaching_board = None
+        generation_source = "local-pronunciation-score"
+        state_sequence = (
+            ["processing", "speaking", "idle"]
+            if teaching_board is None
+            else ["processing", "speaking", "pointing", "listening"]
+        )
+        memory_update = {
+            "last_word": target_word,
+            "last_attempt": transcript,
+            "pronunciation_score": score["score"],
+            "passed": teaching_board is None,
+            "weak_syllable": score["weak_syllable"],
+            "focus_index": None if teaching_board is None else teaching_board.focus_index,
+            "focus": "pronunciation_attempt_feedback",
+            "retrieved_chunks": [chunk.title for chunk in context_chunks],
+        }
+    elif intent == "pronunciation_help":
+        target_word = extract_pronunciation_word(transcript)
+        syllables = simple_syllables(target_word)
+        teaching_board = CompanionTeachingBoard(
+            type="syllables",
+            word=target_word,
+            syllables=syllables,
+            weak_syllable=syllables[0],
+            focus_syllable=syllables[0],
+            focus_index=0,
+            prompt=f"Repeat just {syllables[0]} slowly.",
+        )
+        state_sequence = ["processing", "speaking", "pointing", "listening"]
+        memory_update = {
+            "last_word": target_word,
+            "focus": "syllable_breakdown",
+            "confidence_signal": "needs_support",
+            "retrieved_chunks": [chunk.title for chunk in context_chunks],
+        }
+        response_text = (
+            f"{payload.learner_name}, let us practice {target_word}. "
+            f"Break it into: {', '.join(syllables)}. "
+            f"Now repeat just {syllables[0]} slowly."
+        )
+    elif intent == "quiz":
+        quiz = build_quiz(transcript, current_board)
+        if quiz.get("answered"):
+            teaching_board = CompanionTeachingBoard(
+                type="quiz",
+                question=quiz["question"],
+                options=quiz["options"],
+                correct_answer=quiz["correct_answer"],
+                feedback=quiz["feedback"],
+                selected_answer=quiz["selected_answer"],
+                selected_index=quiz["selected_index"],
+            )
+            response_text = quiz["feedback"]
+            state_sequence = ["processing", "speaking", "idle"]
+            memory_update = {
+                "focus": "quiz_answer",
+                "quiz_correct": quiz["correct"],
+                "selected_answer": quiz["selected_answer"],
+                "selected_index": quiz["selected_index"],
+                "retrieved_chunks": [chunk.title for chunk in context_chunks],
+            }
+        else:
+            teaching_board = CompanionTeachingBoard(
+                type="quiz",
+                question=quiz["question"],
+                options=quiz["options"],
+                correct_answer=quiz["correct_answer"],
+            )
+            response_text = (
+                "Quiz time. Which strategy helps with a long word? "
+                "Option one: say it faster. Option two: break it into syllables. "
+                "Option three: skip the tricky sound. Option four: guess and move on."
+            )
+            state_sequence = ["processing", "speaking", "listening"]
+            memory_update = {
+                "focus": "quiz_prompt",
+                "retrieved_chunks": [chunk.title for chunk in context_chunks],
+            }
+    elif intent == "stats_request":
+        stats = build_stats_board(payload, db)
+        teaching_board = CompanionTeachingBoard(
+            type="stats",
+            accuracy=stats["accuracy"],
+            tricky_words=stats["tricky_words"],
+            next_practice=stats["next_practice"],
+            prompt="Your learning progress",
+        )
+        response_text = (
+            f"Here is your progress. Your quiz accuracy is {stats['accuracy']} percent. "
+            f"Next, we can practice {stats['next_practice']}."
+        )
+        state_sequence = ["processing", "speaking", "idle"]
+        memory_update = {
+            "focus": "stats_review",
+            "next_practice": stats["next_practice"],
+            "retrieved_chunks": [chunk.title for chunk in context_chunks],
+        }
+    else:
+        response_text, generation_source = generate_response(payload, intent, context_chunks)
+        teaching_board = None
+        state_sequence = ["processing", "speaking", "idle"]
+        memory_update = {
+            "last_transcript": transcript,
+            "focus": "open_voice_turn",
+            "retrieved_chunks": [chunk.title for chunk in context_chunks],
+        }
+
+    memory_update = {
+        **memory_update,
+        "learner_age": payload.learner_age,
+        "doodle_id": payload.doodle_id,
+        "retrieval_source": retrieval_source,
+        "generation_source": generation_source,
+        "future_pipeline": "local_stt_translation_rag_tts",
+    }
+
+    if db is not None:
+        remember_turn(
+            db,
+            payload=payload,
+            intent=intent,
+            detected_language=detected_language,
+            response_text=response_text,
+            memory_update=memory_update,
+        )
+
+    return CompanionVoiceTurnResponse(
+        transcript=transcript,
+        detectedLanguage=detected_language,
+        intent=intent,
+        stateSequence=state_sequence,
+        responseText=response_text,
+        teachingBoard=teaching_board,
+        memoryUpdate=memory_update,
+        source=generation_source,
     )

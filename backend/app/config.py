@@ -11,10 +11,33 @@ class Settings(BaseSettings):
     db_url: Optional[str] = None
     db_username: str = "admin"
     db_password: str = "password123"
-    ai_service_url: str = "http://localhost:8000"
-    frontend_allowed_origins: str = "http://localhost:3000"
+    frontend_allowed_origins: str = (
+        "http://localhost:3000,"
+        "http://127.0.0.1:3000,"
+        "http://localhost:3001,"
+        "http://127.0.0.1:3001,"
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "http://localhost:5174,"
+        "http://127.0.0.1:5174"
+    )
     companion_enabled: bool = True
     companion_default_character: str = "default"
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_chat_model: str = "llama3:8b"
+    ollama_embedding_model: str = "nomic-embed-text:latest"
+    rag_top_k: int = 4
+    tts_engine: str = "piper"
+    piper_binary_path: str = "piper"
+    piper_voice_dir: str = "tts/voices"
+    piper_voice_nova: str = "en_US-lessac-medium.onnx"
+    piper_voice_luna: str = "en_US-amy-medium.onnx"
+    piper_voice_bob: str = "en_US-ryan-medium.onnx"
+    piper_voice_leo: str = "en_GB-alan-medium.onnx"
+    stt_engine: str = "faster-whisper"
+    whisper_model_size: str = "tiny"
+    whisper_device: str = "cpu"
+    whisper_compute_type: str = "int8"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
