@@ -117,3 +117,34 @@ class CompanionTranscriptionResponse(BaseModel):
     language: str = "auto"
     duration: float = 0
     source: str = "faster-whisper"
+
+
+class CompanionSystemStatus(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    status: str
+    ollama_reachable: bool = False
+    chat_model: str
+    embedding_model: str
+    loaded_models: List[str] = Field(default_factory=list)
+    message: str
+
+
+class BrainConnectionTestRequest(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+    brain_type: str
+    provider: str
+    endpoint: str = ""
+    model: str = ""
+    api_key: str = ""
+    api_version: str = "2024-10-21"
+    deployment: str = ""
+    project_id: str = ""
+    location: str = ""
+
+
+class BrainConnectionTestResponse(BaseModel):
+    connected: bool
+    message: str
+    models: List[str] = Field(default_factory=list)

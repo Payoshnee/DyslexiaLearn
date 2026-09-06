@@ -302,27 +302,12 @@ def test_stats_request_returns_progress_board():
     assert "nextPractice" in data["teachingBoard"]
 
 
-def test_transcribe_endpoint_returns_backend_transcript(monkeypatch):
-    def fake_transcribe_audio(file, suffix=".webm"):
-        assert suffix == ".webm"
-        return {
-            "transcript": "help me pronounce elephant",
-            "language": "en",
-            "duration": 1.2,
-            "source": "faster-whisper",
-        }
+def test_dybrain_health_is_public(monkeypatch):
+    class Response:
+        def json(self):
+            return {"models": [{"name": "qwen2.5vl:3b"}]}
 
-    monkeypatch.setattr(
-        "app.api.v1.companion.transcribe_audio",
-        fake_transcribe_audio,
-    )
-
-    response = client.post(
-        "/api/v1/companion/transcribe",
-        files={"file": ("voice-turn.webm", b"fake audio", "audio/webm")},
-    )
-
+    monkeypatch.setattr("app.api.dybrain.requests.get", lambda *args, **kwargs: Response())
+    response = client.get("/api/dybrain/health")
     assert response.status_code == 200
-    data = response.json()
-    assert data["transcript"] == "help me pronounce elephant"
-    assert data["source"] == "faster-whisper"
+    assert response.json()["status"] == "ready"

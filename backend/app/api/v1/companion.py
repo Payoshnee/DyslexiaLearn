@@ -1,24 +1,26 @@
 import shutil
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
 from app.schemas.companion import (
+    BrainConnectionTestRequest,
+    BrainConnectionTestResponse,
     CompanionEndSessionRequest,
     CompanionPreferences,
     CompanionRespondRequest,
     CompanionResponse,
     CompanionSessionRequest,
     CompanionSpeechRequest,
-    CompanionTranscriptionResponse,
+    CompanionSystemStatus,
     CompanionVoiceTurnRequest,
     CompanionVoiceTurnResponse,
 )
 from app.services import companion_service
-from app.services.stt_service import SpeechToTextError, transcribe_audio
+from app.services.local_ai_service import get_ollama_status, sleep_ollama, test_brain_connection, wake_ollama
 from app.services.tts_service import TextToSpeechError, synthesize_speech
 
 router = APIRouter(prefix="/companion", tags=["companion"])
@@ -72,20 +74,28 @@ def voice_turn(
     return companion_service.handle_voice_turn(payload, db)
 
 
-@router.post("/transcribe", response_model=CompanionTranscriptionResponse)
-def transcribe_voice(file: UploadFile = File(...)) -> CompanionTranscriptionResponse:
+@router.get("/system", response_model=CompanionSystemStatus)
+def system_status() -> CompanionSystemStatus:
     ensure_companion_enabled()
-    suffix = ".webm"
-    if file.filename and "." in file.filename:
-        suffix = f".{file.filename.rsplit('.', 1)[-1]}"
-    try:
-        result = transcribe_audio(file.file, suffix=suffix)
-    except SpeechToTextError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
-    return CompanionTranscriptionResponse(**result)
+    return get_ollama_status()
+
+
+@router.post("/system/wake", response_model=CompanionSystemStatus)
+def wake_system() -> CompanionSystemStatus:
+    ensure_companion_enabled()
+    return wake_ollama()
+
+
+@router.post("/system/sleep", response_model=CompanionSystemStatus)
+def sleep_system() -> CompanionSystemStatus:
+    ensure_companion_enabled()
+    return sleep_ollama()
+
+
+@router.post("/system/test-connection", response_model=BrainConnectionTestResponse)
+def test_connection(payload: BrainConnectionTestRequest) -> BrainConnectionTestResponse:
+    ensure_companion_enabled()
+    return test_brain_connection(payload)
 
 
 @router.post("/speech")

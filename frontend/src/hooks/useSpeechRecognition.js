@@ -1,138 +1,118 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { requestTranscription } from "../services/companionApi.js";
-
-function getRecorderMimeType() {
-  const options = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
-  return options.find((type) => MediaRecorder.isTypeSupported?.(type)) || "";
+function getSpeechRecognition() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 }
 
+const ERROR_MESSAGES = {
+  "audio-capture": "No microphone was found. Type to Doodle instead.",
+  "not-allowed": "Microphone permission was blocked. Type to Doodle instead.",
+  "service-not-allowed": "Chrome speech recognition is unavailable. Type to Doodle instead.",
+  network: "Chrome speech recognition could not connect. Type to Doodle instead.",
+};
+
 export function useSpeechRecognition({ onResult, onStart, onEnd, onError } = {}) {
-  const recorderRef = useRef(null);
-  const chunksRef = useRef([]);
-  const streamRef = useRef(null);
-  const silenceTimerRef = useRef(null);
-  const analyserFrameRef = useRef(null);
-  const [supported, setSupported] = useState(() => Boolean(navigator.mediaDevices?.getUserMedia));
+  const recognitionRef = useRef(null);
+  const finalTranscriptRef = useRef("");
+  const callbacksRef = useRef({ onResult, onStart, onEnd, onError });
+  const [supported] = useState(() => Boolean(getSpeechRecognition()));
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState("");
 
-  const cleanupStream = () => {
-    window.clearTimeout(silenceTimerRef.current);
-    window.cancelAnimationFrame(analyserFrameRef.current);
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-  };
+  useEffect(() => {
+    callbacksRef.current = { onResult, onStart, onEnd, onError };
+  }, [onResult, onStart, onEnd, onError]);
 
-  const startSilenceDetection = (stream, recorder) => {
-    const audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
-    const data = new Uint8Array(analyser.fftSize);
-    source.connect(analyser);
+  useEffect(() => () => {
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      recognition.onstart = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      recognition.abort();
+    }
+  }, []);
 
-    const checkVolume = () => {
-      analyser.getByteTimeDomainData(data);
-      const volume =
-        data.reduce((sum, value) => sum + Math.abs(value - 128), 0) / data.length;
+  const startListening = () => {
+    const SpeechRecognition = getSpeechRecognition();
 
-      if (volume > 2.5) {
-        window.clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = window.setTimeout(() => {
-          if (recorder.state === "recording") {
-            recorder.stop();
-          }
-          audioContext.close();
-        }, 950);
-      }
-
-      if (recorder.state === "recording") {
-        analyserFrameRef.current = window.requestAnimationFrame(checkVolume);
-      }
-    };
-
-    silenceTimerRef.current = window.setTimeout(() => {
-      if (recorder.state === "recording") {
-        recorder.stop();
-      }
-      audioContext.close();
-    }, 6000);
-    checkVolume();
-  };
-
-  const startListening = async () => {
-    const canRecord = Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
-    setSupported(canRecord);
-
-    if (!canRecord) {
-      const message = "Microphone recording is not supported in this browser. Type to Doodle instead.";
+    if (!SpeechRecognition) {
+      const message = "Chrome speech recognition is not supported in this browser. Type to Doodle instead.";
       setError(message);
-      onError?.(message);
+      callbacksRef.current.onError?.(message);
       return;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      chunksRef.current = [];
-      const mimeType = getRecorderMimeType();
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    if (recognitionRef.current) {
+      return;
+    }
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    finalTranscriptRef.current = "";
+
+    recognition.onstart = () => {
+      setListening(true);
+      setTranscript("");
+      setError("");
+      callbacksRef.current.onStart?.();
+    };
+
+    recognition.onresult = (event) => {
+      let finalText = finalTranscriptRef.current;
+      let interimText = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const text = event.results[index][0]?.transcript || "";
+        if (event.results[index].isFinal) {
+          finalText += text;
+        } else {
+          interimText += text;
         }
-      };
+      }
 
-      recorder.onstart = () => {
-        setListening(true);
-        setTranscript("");
-        setError("");
-        onStart?.();
-      };
+      finalTranscriptRef.current = finalText;
+      setTranscript(`${finalText}${interimText}`.trim());
+    };
 
-      recorder.onstop = async () => {
-        setListening(false);
-        cleanupStream();
-        const audioBlob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        chunksRef.current = [];
-        if (!audioBlob.size) {
-          onEnd?.();
-          return;
-        }
-
-        try {
-          setTranscript("Transcribing with local Whisper...");
-          const result = await requestTranscription(audioBlob);
-          setTranscript(result.transcript || "");
-          if (result.transcript) {
-            onResult?.(result.transcript);
-          }
-        } catch {
-          const message = "Backend Whisper transcription failed. Type to Doodle instead.";
-          setError(message);
-          onError?.(message);
-        } finally {
-          onEnd?.();
-        }
-      };
-
-      recorderRef.current = recorder;
-      recorder.start();
-      startSilenceDetection(stream, recorder);
-    } catch {
-      const message = "Microphone permission was blocked. Type to Doodle instead.";
+    recognition.onerror = (event) => {
+      if (event.error === "aborted" || event.error === "no-speech") {
+        return;
+      }
+      const message = ERROR_MESSAGES[event.error] || "Chrome could not understand the microphone input. Try again or type instead.";
       setError(message);
-      onError?.(message);
-      cleanupStream();
+      callbacksRef.current.onError?.(message);
+    };
+
+    recognition.onend = () => {
+      const finalText = finalTranscriptRef.current.trim();
+      recognitionRef.current = null;
+      setListening(false);
+      setTranscript(finalText);
+      if (finalText) {
+        callbacksRef.current.onResult?.(finalText);
+      }
+      callbacksRef.current.onEnd?.();
+    };
+
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      const message = "Chrome speech recognition could not start. Try again or type instead.";
+      setError(message);
+      callbacksRef.current.onError?.(message);
     }
   };
 
   const stopListening = () => {
-    if (recorderRef.current?.state === "recording") {
-      recorderRef.current.stop();
-    }
+    recognitionRef.current?.stop();
   };
 
   return {

@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.v1.router import api_router
+from app.api.dybrain import router as dybrain_router
 from app.config import get_settings
 from app.database import Base, engine, get_db
 from app.models import Flashcard, User
@@ -33,6 +34,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.include_router(dybrain_router)
 
 
 @app.on_event("startup")
@@ -141,4 +143,3 @@ def delete_flashcard(flashcard_id: int, db: Session = Depends(get_db)) -> str:
     db.delete(flashcard)
     db.commit()
     return "Flashcard deleted successfully!"
-

@@ -363,7 +363,8 @@ def generate_response(
                 [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
-                ]
+                ],
+                payload.context.get("brain"),
             ),
             "ollama-rag",
         )
@@ -406,7 +407,8 @@ def generate_pronunciation_attempt_feedback(
                         "content": "You are a warm dyslexia pronunciation coach. Keep replies under 35 words.",
                     },
                     {"role": "user", "content": prompt},
-                ]
+                ],
+                payload.context.get("brain"),
             ),
             "ollama-rag",
         )

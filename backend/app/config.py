@@ -24,8 +24,9 @@ class Settings(BaseSettings):
     companion_enabled: bool = True
     companion_default_character: str = "default"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_chat_model: str = "llama3:8b"
+    ollama_chat_model: str = "qwen2.5vl:3b"
     ollama_embedding_model: str = "nomic-embed-text:latest"
+    ollama_keep_alive: str = "10m"
     rag_top_k: int = 4
     tts_engine: str = "piper"
     piper_binary_path: str = "piper"
