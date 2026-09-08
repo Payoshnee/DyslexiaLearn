@@ -35,11 +35,6 @@ class Settings(BaseSettings):
     piper_voice_luna: str = "en_US-amy-medium.onnx"
     piper_voice_bob: str = "en_US-ryan-medium.onnx"
     piper_voice_leo: str = "en_GB-alan-medium.onnx"
-    stt_engine: str = "faster-whisper"
-    whisper_model_size: str = "tiny"
-    whisper_device: str = "cpu"
-    whisper_compute_type: str = "int8"
-
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

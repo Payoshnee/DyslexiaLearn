@@ -4,16 +4,16 @@ The voice-first AI Doodle backend is wired for a local-first stack.
 
 ## Recommended Models
 
-- Chat / tutor reasoning: `llama3:8b` if already installed, or `llama3.2:3b` for a lighter model
+- Shared chat / tutor / vision model: `qwen2.5vl:3b`
 - Embeddings: `nomic-embed-text:latest` if already installed, or `bge-m3` for stronger multilingual retrieval
-- Speech-to-text next step: `whisper.cpp`
+- Speech-to-text: Chrome's native Web Speech API
 - Text-to-speech now: browser `speechSynthesis`
 - Text-to-speech next step: Piper or Kokoro
 
 ## Ollama Setup
 
 ```bash
-ollama pull llama3:8b
+ollama pull qwen2.5vl:3b
 ollama pull nomic-embed-text
 ollama serve
 ```
@@ -22,7 +22,7 @@ The backend reads:
 
 ```text
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_CHAT_MODEL=llama3:8b
+OLLAMA_CHAT_MODEL=qwen2.5vl:3b
 OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
 RAG_TOP_K=4
 ```

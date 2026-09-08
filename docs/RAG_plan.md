@@ -47,7 +47,7 @@ Running Ollama locally depends heavily on the system's RAM and VRAM (GPU Memory)
 ### Step 1: Integrated FastAPI AI Backend
 - Keep the AI/RAG/voice pipeline inside the main `backend/app` FastAPI service.
 - Use the existing `/api/v1/companion/*` endpoints for voice turns, transcription, speech, pronunciation, quiz, stats, and memory.
-- Use Ollama for local LLM and embeddings, PostgreSQL/pgvector for durable retrieval, faster-whisper for local STT, and Piper for local TTS.
+- Use the shared DyBrain Ollama service for LLM responses and embeddings, PostgreSQL/pgvector for durable retrieval, Chrome's native speech recognition for STT, and Piper for TTS.
 
 ### Step 2: Backend Integration
 - Route frontend requests directly to the FastAPI companion API.

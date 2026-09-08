@@ -23,8 +23,8 @@ DyslexiaLearn is a voice-first AI learning companion for children with dyslexia.
 - Voice quiz flow with spoken option handling.
 - Stats/progress request flow with a dynamic progress board.
 - Learner memory for practiced words, quiz results, retrieved context, and focus areas.
-- Backend speech-to-text with faster-whisper, so voice understanding does not depend on browser speech recognition.
-- Text fallback input when microphone recording or backend transcription is unavailable.
+- Chrome-native speech-to-text using `SpeechRecognition`/`webkitSpeechRecognition`.
+- Text fallback input when browser speech recognition is unavailable.
 - Keep-listening mode for hands-free conversational practice.
 - Day/night theme toggle.
 - Background video on non-stage pages.
@@ -33,11 +33,9 @@ DyslexiaLearn is a voice-first AI learning companion for children with dyslexia.
 
 ```text
 Child speaks
-→ browser records microphone audio
-→ FastAPI /api/v1/companion/transcribe
-→ local faster-whisper converts audio to text
+→ Chrome converts microphone speech to text
 → FastAPI /api/v1/companion/voice-turn
-→ local intent detection + Ollama/RAG response
+→ local intent detection + shared DyBrain Ollama/RAG response
 → backend returns response text, doodle actions, and board data
 → FastAPI /api/v1/companion/speech generates audio with Piper
 → frontend plays one controlled audio stream

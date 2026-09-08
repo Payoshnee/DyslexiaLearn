@@ -1,8 +1,8 @@
 # DyslexiaLearn 3D AI Doodle Companion
 
-Voice-first dyslexia learning companion with a 3D animated doodle, local speech-to-text, local LLM/RAG reasoning, dynamic teaching boards, pronunciation scoring, voice quizzes, stats memory, and backend-generated speech.
+Voice-first dyslexia learning companion with a 3D animated doodle, Chrome speech recognition, shared Ollama/RAG reasoning, dynamic teaching boards, pronunciation scoring, voice quizzes, stats memory, and backend-generated speech.
 
-The current MVP is designed to run locally without relying on browser speech recognition or macOS-only audio. The browser records audio, FastAPI transcribes it with Whisper, the backend decides the learning intent, and the doodle speaks back using Piper TTS.
+The current MVP uses Chrome's native Web Speech API for speech recognition. The recognized text is sent to FastAPI and the shared DyBrain Ollama service, then the doodle speaks the answer using Piper TTS.
 
 ![Robot fallback visual](frontend/src/assets/doodles/robot-fallback.svg)
 
@@ -18,7 +18,7 @@ DyslexiaLearn is a multimodal AI tutoring system for children with dyslexia. The
 
 Resume line:
 
-> Built a voice-first multimodal dyslexia tutor using React, Three.js, FastAPI, faster-whisper, Ollama, Piper TTS, local RAG memory, dynamic teaching boards, and animated 3D companion state control.
+> Built a voice-first multimodal dyslexia tutor using React, Three.js, Chrome SpeechRecognition, FastAPI, a shared Ollama model, Piper TTS, RAG memory, dynamic teaching boards, and animated 3D companion state control.
 
 ## MVP Status
 
@@ -28,14 +28,14 @@ Resume line:
 | FastAPI backend | Done | Backend handles auth legacy routes plus companion APIs. |
 | 3D doodle selection | Done | Nova, Luna, Bob, Leo. |
 | 3D stage | Done | Full-page stage with animated state changes. |
-| Backend STT | Done | Browser records audio; backend transcribes with faster-whisper. |
+| Chrome speech recognition | Done | Chrome converts microphone speech to text using its native Web Speech API. |
 | Backend TTS | Done | Piper TTS generates WAV audio. |
 | LLM/RAG | MVP | Ollama response generation and RAG-ready memory are wired. |
 | Dynamic pronunciation board | Done | Board generated from backend intent and target word. |
 | Pronunciation attempt loop | Done | Starts at first syllable, retries low scores, advances on pass, stops on command. |
 | Quiz board | Done | Four options; accepts option number, letter, or full option text. |
 | Stats board | Done | Shows quiz accuracy and next practice from learner memory. |
-| Real-time streaming STT | Not yet | Current system records short audio chunks, then transcribes. |
+| Text fallback | Done | Learners can type when Chrome speech recognition is unavailable. |
 
 ## Visual Experience
 
@@ -74,13 +74,11 @@ Resume line:
 ```mermaid
 flowchart LR
   Child[Child Learner] --> Browser[React + Three.js Frontend]
-  Browser --> Recorder[MediaRecorder Audio Capture]
-  Recorder --> STT[FastAPI /companion/transcribe]
-  STT --> Whisper[faster-whisper STT]
-  Whisper --> Turn[FastAPI /companion/voice-turn]
+  Browser --> ChromeSTT[Chrome SpeechRecognition]
+  ChromeSTT --> Turn[FastAPI /companion/voice-turn]
   Turn --> Intent[Intent Router]
   Turn --> RAG[RAG + Learner Memory]
-  Turn --> Ollama[Ollama LLM for open answers]
+  Turn --> Ollama[Shared DyBrain Ollama model]
   Intent --> Board[Dynamic Teaching Board]
   Intent --> Actions[Doodle State Sequence]
   Turn --> TTS[FastAPI /companion/speech]
@@ -100,18 +98,15 @@ sequenceDiagram
   participant U as Learner
   participant F as Frontend
   participant B as FastAPI
-  participant W as faster-whisper
+  participant C as Chrome SpeechRecognition
   participant R as Intent/RAG
   participant L as Ollama
   participant P as Piper
 
   U->>F: Click Speak to Doodle
   F->>F: Stop any active doodle audio
-  F->>F: Record microphone audio
-  F->>B: POST /api/v1/companion/transcribe
-  B->>W: Transcribe audio
-  W-->>B: transcript
-  B-->>F: transcript
+  F->>C: Start native speech recognition
+  C-->>F: transcript
   F->>B: POST /api/v1/companion/voice-turn
   B->>R: Detect intent + read board context
   alt Controlled flow
@@ -143,7 +138,6 @@ Important companion endpoints:
 |---|---|---|
 | `/api/v1/companion/preferences` | GET/PUT | Companion settings. |
 | `/api/v1/companion/sessions` | POST | Start companion session. |
-| `/api/v1/companion/transcribe` | POST multipart | Convert recorded audio to text using faster-whisper. |
 | `/api/v1/companion/voice-turn` | POST JSON | Main brain: intent, board, memory, response, actions. |
 | `/api/v1/companion/speech` | POST JSON | Convert response text to WAV audio using Piper. |
 
@@ -307,30 +301,28 @@ Rule:
 
 ## Local AI Stack
 
-Quality profile:
+Shared model profile:
 
 ```env
-WHISPER_MODEL_SIZE=base.en
-OLLAMA_CHAT_MODEL=qwen2.5:7b-instruct
+OLLAMA_CHAT_MODEL=qwen2.5vl:3b
 TTS_ENGINE=piper
 ```
 
-Current default in code may use faster settings for development, but the intended quality profile is above.
+Speech-to-text does not consume server resources because Chrome performs it in the browser.
 
 Recommended local models:
 
 | Purpose | Model/Tool | Why |
 |---|---|---|
-| STT | faster-whisper `base.en` | Better English recognition for pronunciation practice. |
-| Fast STT fallback | faster-whisper `tiny.en` | Faster on weaker laptops. |
-| LLM | `qwen2.5:7b-instruct` | Better instruction following than weaker small models. |
+| STT | Chrome Web Speech API | No Whisper model or transcription server is required. |
+| LLM + vision | `qwen2.5vl:3b` | One compact model supports all three projects, including Closira images. |
 | Embeddings | `nomic-embed-text` | Local embedding model for RAG. |
 | TTS | Piper | Cross-platform local speech generation. |
 
 Pull Ollama models:
 
 ```bash
-ollama pull qwen2.5:7b-instruct
+ollama pull qwen2.5vl:3b
 ollama pull nomic-embed-text
 ```
 
@@ -427,16 +419,16 @@ The MVP moved through several audio/AI designs.
 ```mermaid
 xychart-beta
   title "Expected Local Voice Turn Latency Improvement"
-  x-axis ["Browser STT", "Batch Whisper base", "Whisper tiny + auto-stop", "Controlled intent fast-path"]
+  x-axis ["Chrome STT", "Shared model call", "Controlled intent fast-path"]
   y-axis "Approx. response delay seconds" 0 --> 8
-  bar [1.0, 6.5, 3.5, 2.0]
+  bar [1.0, 3.5, 2.0]
 ```
 
 What improved:
 
 | Problem | Fix |
 |---|---|
-| Browser STT failed in Arc/unsupported browsers | Switched to MediaRecorder + backend faster-whisper. |
+| Whisper required extra server memory | Switched to Chrome-native SpeechRecognition with typed fallback. |
 | macOS-only audio | Replaced `say` with Piper TTS. |
 | Silent audio | Installed Piper, downloaded voices, fixed voice directory. |
 | Doodle talked over new audio | Added one global audio controller and stop-on-new-speech. |
@@ -572,7 +564,6 @@ backend/
   app/api/v1/companion.py          # Companion API routes
   app/services/companion_service.py# Main voice-turn orchestration
   app/services/rag_service.py      # Intent, scoring, quiz parsing, RAG helpers
-  app/services/stt_service.py      # faster-whisper transcription
   app/services/tts_service.py      # Piper speech synthesis
   app/services/local_ai_service.py # Ollama chat/embedding calls
   app/schemas/companion.py         # API schemas
@@ -586,7 +577,7 @@ frontend/
   src/components/companion/DoodleModel.jsx
   src/components/companion/TeachingBoard.jsx
   src/components/companion/VoiceButton.jsx
-  src/hooks/useSpeechRecognition.js      # MediaRecorder + backend Whisper upload
+  src/hooks/useSpeechRecognition.js      # Chrome-native Web Speech API
   src/utils/doodleVoice.js               # Single audio controller + backend TTS
   src/companion/doodleCatalog.js         # Doodle model/voice/camera config
 ```

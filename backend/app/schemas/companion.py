@@ -112,13 +112,6 @@ class CompanionSpeechRequest(BaseModel):
     rate: float = Field(default=0.86, ge=0.5, le=1.5)
 
 
-class CompanionTranscriptionResponse(BaseModel):
-    transcript: str
-    language: str = "auto"
-    duration: float = 0
-    source: str = "faster-whisper"
-
-
 class CompanionSystemStatus(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
