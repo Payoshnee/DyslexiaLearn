@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     companion_enabled: bool = True
     companion_default_character: str = "default"
     ollama_base_url: str = "http://localhost:11434"
+    ollama_api_key: str = ""
     ollama_chat_model: str = "qwen2.5vl:3b"
     ollama_embedding_model: str = "nomic-embed-text:latest"
     ollama_keep_alive: str = "10m"

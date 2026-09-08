@@ -22,7 +22,7 @@ Generate each token locally with:
 openssl rand -hex 32
 ```
 
-The public health endpoint is `/api/dybrain/health`. Authenticated Ollama-compatible endpoints are `/api/tags`, `/api/chat`, and `/api/generate`. Send a project token as `Authorization: Bearer TOKEN`.
+The public health endpoint is `/api/dybrain/health`. Authenticated Ollama-compatible endpoints are `/api/tags`, `/api/ps`, `/api/chat`, and `/api/generate`. Send a project token as `Authorization: Bearer TOKEN`.
 
 ## Deploy this folder to the Space
 

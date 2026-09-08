@@ -74,6 +74,12 @@ async def tags(authorization: str = Header(default="")) -> Any:
     return (await ollama("GET", "/api/tags")).json()
 
 
+@app.get("/api/ps")
+async def running_models(authorization: str = Header(default="")) -> Any:
+    authorize(authorization)
+    return (await ollama("GET", "/api/ps")).json()
+
+
 @app.post("/api/chat")
 async def chat(payload: ChatRequest, authorization: str = Header(default="")) -> Any:
     authorize(authorization)

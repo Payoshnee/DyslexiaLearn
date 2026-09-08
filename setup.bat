@@ -4,9 +4,8 @@ setlocal enabledelayedexpansion
 set ROOT_DIR=%~dp0
 cd /d "%ROOT_DIR%"
 
-if "%OLLAMA_CHAT_MODEL%"=="" set OLLAMA_CHAT_MODEL=qwen2.5:7b-instruct
+if "%OLLAMA_CHAT_MODEL%"=="" set OLLAMA_CHAT_MODEL=qwen2.5vl:3b
 if "%OLLAMA_EMBEDDING_MODEL%"=="" set OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-if "%WHISPER_MODEL_SIZE%"=="" set WHISPER_MODEL_SIZE=base.en
 
 echo ==========================================
 echo  DyslexiaLearn Local AI Setup ^(Windows^)
@@ -149,7 +148,7 @@ if not exist "backend\.env" copy "backend\.env.example" "backend\.env" >nul
 powershell -ExecutionPolicy Bypass -Command ^
   "$path='backend/.env';" ^
   "$embedding='%OLLAMA_EMBEDDING_MODEL%'; if($embedding -notmatch ':'){$embedding=\"$embedding`:latest\"};" ^
-  "$values=@{OLLAMA_CHAT_MODEL='%OLLAMA_CHAT_MODEL%'; OLLAMA_EMBEDDING_MODEL=$embedding; WHISPER_MODEL_SIZE='%WHISPER_MODEL_SIZE%'; TTS_ENGINE='piper'; PIPER_BINARY_PATH='piper'; PIPER_VOICE_DIR='tts/voices'};" ^
+  "$values=@{OLLAMA_CHAT_MODEL='%OLLAMA_CHAT_MODEL%'; OLLAMA_EMBEDDING_MODEL=$embedding; TTS_ENGINE='piper'; PIPER_BINARY_PATH='piper'; PIPER_VOICE_DIR='tts/voices'};" ^
   "$lines=Get-Content $path;" ^
   "$seen=@{}; $next=@();" ^
   "foreach($line in $lines){$key=($line -split '=',2)[0]; if($values.ContainsKey($key)){$next += \"$key=$($values[$key])\"; $seen[$key]=$true}else{$next += $line}}" ^
@@ -172,7 +171,6 @@ if "%PACKAGE_MANAGER%"=="pnpm" (
 )
 echo.
 echo Quality profile:
-echo   WHISPER_MODEL_SIZE=%WHISPER_MODEL_SIZE%
 echo   OLLAMA_CHAT_MODEL=%OLLAMA_CHAT_MODEL%
 echo   TTS_ENGINE=piper
 pause

@@ -11,7 +11,6 @@ NC="\033[0m"
 
 OLLAMA_CHAT_MODEL="${OLLAMA_CHAT_MODEL:-qwen2.5vl:3b}"
 OLLAMA_EMBEDDING_MODEL="${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}"
-WHISPER_MODEL_SIZE="${WHISPER_MODEL_SIZE:-base.en}"
 
 echo "=========================================="
 echo " DyslexiaLearn Local AI Setup (Mac/Linux)"
@@ -127,7 +126,6 @@ path = Path("backend/.env")
 values = {
     "OLLAMA_CHAT_MODEL": "${OLLAMA_CHAT_MODEL}",
     "OLLAMA_EMBEDDING_MODEL": "${OLLAMA_EMBEDDING_MODEL}:latest" if "${OLLAMA_EMBEDDING_MODEL}" == "nomic-embed-text" else "${OLLAMA_EMBEDDING_MODEL}",
-    "WHISPER_MODEL_SIZE": "${WHISPER_MODEL_SIZE}",
     "TTS_ENGINE": "piper",
     "PIPER_BINARY_PATH": "piper",
     "PIPER_VOICE_DIR": "tts/voices",
@@ -164,6 +162,5 @@ else
 fi
 echo
 echo "Quality profile:"
-echo "  WHISPER_MODEL_SIZE=${WHISPER_MODEL_SIZE}"
 echo "  OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL}"
 echo "  TTS_ENGINE=piper"

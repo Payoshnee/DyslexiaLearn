@@ -395,15 +395,13 @@ DATABASE_URL=postgresql+psycopg://admin:password123@localhost:5432/dyslexialearn
 FRONTEND_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174
 COMPANION_ENABLED=true
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_CHAT_MODEL=qwen2.5:7b-instruct
+OLLAMA_API_KEY=
+OLLAMA_CHAT_MODEL=qwen2.5vl:3b
 OLLAMA_EMBEDDING_MODEL=nomic-embed-text:latest
 RAG_TOP_K=4
 TTS_ENGINE=piper
 PIPER_BINARY_PATH=piper
 PIPER_VOICE_DIR=tts/voices
-WHISPER_MODEL_SIZE=base.en
-WHISPER_DEVICE=cpu
-WHISPER_COMPUTE_TYPE=int8
 ```
 
 Frontend example:

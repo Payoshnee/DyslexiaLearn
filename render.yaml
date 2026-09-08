@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: dyslexialearn-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_ALLOWED_ORIGINS
+        value: https://dyslexia-learn-8aoq.vercel.app
+      - key: OLLAMA_BASE_URL
+        value: https://payoshneejoshi-dyslexialearn.hf.space
+      - key: OLLAMA_API_KEY
+        sync: false
+      - key: OLLAMA_CHAT_MODEL
+        value: qwen2.5vl:3b
+      - key: OLLAMA_EMBEDDING_MODEL
+        value: nomic-embed-text:latest
+      - key: COMPANION_ENABLED
+        value: "true"
+      - key: TTS_ENGINE
+        value: piper

@@ -14,10 +14,17 @@ class LocalAIUnavailable(RuntimeError):
     pass
 
 
+def _ollama_headers() -> dict[str, str]:
+    if not settings.ollama_api_key:
+        return {}
+    return {"Authorization": f"Bearer {settings.ollama_api_key}"}
+
+
 def ollama_embed(text: str) -> list[float]:
     try:
       response = requests.post(
           f"{settings.ollama_base_url}/api/embeddings",
+          headers=_ollama_headers(),
           json={"model": settings.ollama_embedding_model, "prompt": text},
           timeout=30,
       )
@@ -51,6 +58,7 @@ def ollama_chat(messages: list[dict[str, str]], brain: Optional[dict[str, Any]] 
 
       response = requests.post(
           f"{settings.ollama_base_url}/api/chat",
+          headers=_ollama_headers(),
           json={
               "model": model,
               "messages": messages,
@@ -73,7 +81,11 @@ def ollama_chat(messages: list[dict[str, str]], brain: Optional[dict[str, Any]] 
 
 
 def _loaded_ollama_models() -> list[str]:
-    response = requests.get(f"{settings.ollama_base_url}/api/ps", timeout=5)
+    response = requests.get(
+        f"{settings.ollama_base_url}/api/ps",
+        headers=_ollama_headers(),
+        timeout=20,
+    )
     response.raise_for_status()
     data = response.json()
     models = data.get("models", [])
@@ -115,6 +127,7 @@ def wake_ollama() -> CompanionSystemStatus:
     try:
         requests.post(
             f"{settings.ollama_base_url}/api/chat",
+            headers=_ollama_headers(),
             json={
                 "model": settings.ollama_chat_model,
                 "messages": [{"role": "user", "content": "ready"}],
@@ -141,6 +154,7 @@ def sleep_ollama() -> CompanionSystemStatus:
     try:
         requests.post(
             f"{settings.ollama_base_url}/api/generate",
+            headers=_ollama_headers(),
             json={
                 "model": settings.ollama_chat_model,
                 "prompt": "",
