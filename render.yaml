@@ -13,9 +13,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.8
       - key: DATABASE_URL
-        fromDatabase:
-          name: dyslexialearn-db
-          property: connectionString
+        sync: false
       - key: FRONTEND_ALLOWED_ORIGINS
         value: https://dyslexia-learn-8aoq.vercel.app
       - key: OLLAMA_BASE_URL
@@ -36,10 +34,3 @@ services:
         value: piper
       - key: PIPER_VOICE_DIR
         value: tts/voices
-
-databases:
-  - name: dyslexialearn-db
-    plan: free
-    region: singapore
-    databaseName: dyslexialearn
-    user: dyslexialearn
