@@ -44,10 +44,15 @@ class Settings(BaseSettings):
             if self.db_url.startswith("jdbc:postgresql://"):
                 host_and_db = self.db_url.removeprefix("jdbc:postgresql://")
                 return f"postgresql+psycopg://{self.db_username}:{self.db_password}@{host_and_db}"
-            if self.db_url.startswith("postgresql://"):
-                return self.db_url.replace("postgresql://", "postgresql+psycopg://", 1)
-            return self.db_url
-        return self.database_url
+            url = self.db_url
+        else:
+            url = self.database_url
+
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+psycopg://", 1)
+        if url.startswith("postgres://"):
+            return url.replace("postgres://", "postgresql+psycopg://", 1)
+        return url
 
     @property
     def cors_origins(self) -> List[str]:
