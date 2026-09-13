@@ -82,7 +82,7 @@ def ollama_chat(messages: list[dict[str, str]], brain: Optional[dict[str, Any]] 
 
 def _loaded_ollama_models() -> list[str]:
     response = requests.get(
-        f"{settings.ollama_base_url}/api/ps",
+        f"{settings.ollama_base_url}/api/tags",
         headers=_ollama_headers(),
         timeout=20,
     )
