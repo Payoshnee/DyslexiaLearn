@@ -493,7 +493,9 @@ input {
 }
 
 .system-status-stopped span,
-.system-status-error span {
+.system-status-error span,
+.system-status-brain-error span,
+.system-status-firmware-error span {
   background: #ffe4e6;
   color: #be123c;
 }

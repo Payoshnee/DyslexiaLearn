@@ -65,10 +65,11 @@ export default function CompanionStagePage() {
       setSystemStatus(normalized);
       return normalized;
     } catch (error) {
-      setSystemStatus({
-        status: "error",
-        message: error.message || "System check failed.",
-      });
+      const failure = {
+        status: "firmware-error",
+        message: "My firmware backend is not connected. The free server may still be waking up.",
+      };
+      setSystemStatus(failure);
       return null;
     } finally {
       setSystemChecking(false);
@@ -88,12 +89,26 @@ export default function CompanionStagePage() {
 
     brainNoticeShownRef.current = true;
     setSystemChecking(true);
+
+    try {
+      await requestSystemStatus();
+    } catch {
+      const failure = {
+        status: "firmware-error",
+        message: "My firmware backend is not connected. Please wait for Render and try again.",
+      };
+      setSystemStatus(failure);
+      await announceBrainStatus("I cannot connect to my firmware. Please wait a moment and try again.");
+      setSystemChecking(false);
+      return;
+    }
+
     setSystemStatus((current) => ({
       ...current,
       status: "starting",
-      message: "Connecting to my brain. This can take a moment on the free server.",
+      message: "My firmware is connected. I am connecting to my brain now.",
     }));
-    await announceBrainStatus("I am connecting to my brain. Please wait a moment.");
+    await announceBrainStatus("My firmware is connected. I am connecting to my brain now.");
 
     try {
       const usesManagedOllama = brainConfig.brainType === "dybrain" || brainConfig.provider === "ollama";
@@ -107,14 +122,14 @@ export default function CompanionStagePage() {
       if (result.status === "up") {
         await announceBrainStatus("My brain is connected. I am ready to help you!");
       } else {
-        await announceBrainStatus("I still cannot connect to my brain. Please try Connect again.");
+        await announceBrainStatus("My firmware is connected, but my brain is not connected. Please check the brain token.");
       }
     } catch {
       setSystemStatus({
-        status: "error",
-        message: "The brain service could not be reached. Please try again.",
+        status: "firmware-error",
+        message: "The firmware connection was lost while connecting to the brain.",
       });
-      await announceBrainStatus("I could not connect to my brain. Please try Connect again.");
+      await announceBrainStatus("I lost my firmware connection. Please wait and try again.");
     } finally {
       setSystemChecking(false);
     }
@@ -305,11 +320,22 @@ export default function CompanionStagePage() {
 
     const timer = window.setTimeout(() => {
       brainNoticeShownRef.current = true;
-      announceBrainStatus("Please connect me to my brain so I can help you.");
+      announceBrainStatus(
+        systemStatus.status === "firmware-error"
+          ? "Please connect my firmware backend so I can start."
+          : "My firmware is connected. Please connect me to my brain so I can help you.",
+      );
     }, 3500);
 
     return () => window.clearTimeout(timer);
   }, [systemStatus?.status]);
+
+  const firmwareOffline = systemStatus?.status === "firmware-error";
+  const statusLabel = firmwareOffline
+    ? "firmware offline"
+    : systemStatus?.status === "starting"
+      ? "connecting"
+      : systemStatus?.status;
 
   return (
     <main className={`stage-page ${theme}`}>
@@ -320,9 +346,9 @@ export default function CompanionStagePage() {
         {systemStatus && systemStatus.status !== "up" ? (
           <div className={`system-status system-status-${systemStatus.status}`}>
             <button type="button" onClick={connectSystem} disabled={systemChecking}>
-              {systemChecking ? "Connecting..." : "Connect brain"}
+              {systemChecking ? "Checking..." : firmwareOffline ? "Retry firmware" : "Connect brain"}
             </button>
-            <span>{systemStatus.status === "starting" ? "connecting" : systemStatus.status}</span>
+            <span>{statusLabel}</span>
             <p>{systemStatus.message}</p>
           </div>
         ) : null}

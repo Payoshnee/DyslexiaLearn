@@ -20,6 +20,15 @@ def _ollama_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {settings.ollama_api_key}"}
 
 
+def _brain_connection_message(exc: requests.RequestException) -> str:
+    status_code = getattr(getattr(exc, "response", None), "status_code", None)
+    if status_code == 401:
+        return "My firmware is connected, but the brain token was rejected. Check OLLAMA_API_KEY in Render."
+    if status_code == 503:
+        return "My firmware is connected, but DyBrain is not configured or is still starting."
+    return "My firmware is connected, but I could not reach my brain."
+
+
 def ollama_embed(text: str) -> list[float]:
     try:
       response = requests.post(
@@ -101,12 +110,12 @@ def get_ollama_status() -> CompanionSystemStatus:
         loaded_models = _loaded_ollama_models()
     except requests.RequestException as exc:
         return CompanionSystemStatus(
-            status="stopped",
+            status="brain-error",
             ollama_reachable=False,
             chat_model=settings.ollama_chat_model,
             embedding_model=settings.ollama_embedding_model,
             loaded_models=[],
-            message="My brain is offline. Use Connect brain to wake it up.",
+            message=_brain_connection_message(exc),
         )
 
     chat_loaded = any(
@@ -139,12 +148,12 @@ def wake_ollama() -> CompanionSystemStatus:
         ).raise_for_status()
     except requests.RequestException as exc:
         return CompanionSystemStatus(
-            status="error",
+            status="brain-error",
             ollama_reachable=False,
             chat_model=settings.ollama_chat_model,
             embedding_model=settings.ollama_embedding_model,
             loaded_models=[],
-            message="I could not connect to my brain. Please try again in a moment.",
+            message=_brain_connection_message(exc),
         )
 
     return get_ollama_status()
