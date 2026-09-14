@@ -76,6 +76,8 @@ def test_voice_turn_returns_rag_ready_payload():
     data = response.json()
     assert data["intent"] == "pronunciation_help"
     assert data["teachingBoard"]["word"] == "pronunciation"
+    assert data["teachingBoard"]["syllables"] == ["pruh", "nun", "see", "ay", "shun"]
+    assert "great job" not in data["responseText"].lower()
     assert data["stateSequence"]
     assert data["memoryUpdate"]["future_pipeline"] == "local_stt_translation_rag_tts"
 
@@ -118,7 +120,7 @@ def test_pronunciation_attempt_does_not_restart_lesson():
                 "currentBoard": {
                     "type": "syllables",
                     "word": "pronunciation",
-                    "syllables": ["pro", "nun", "ci", "a", "tion"],
+                    "syllables": ["pruh", "nun", "see", "ay", "shun"],
                 }
             },
         },
@@ -138,16 +140,16 @@ def test_pronunciation_loop_retries_advances_and_stops():
         "currentBoard": {
             "type": "syllables",
             "word": "pronunciation",
-            "syllables": ["pro", "nun", "ci", "a", "tion"],
+            "syllables": ["pruh", "nun", "see", "ay", "shun"],
             "focusIndex": 0,
-            "focusSyllable": "pro",
+            "focusSyllable": "pruh",
         }
     }
 
     response = client.post(
         "/api/v1/companion/voice-turn",
         json={
-            "transcript": "rho",
+            "transcript": "pro",
             "learnerName": "Demo",
             "learnerAge": 8,
             "doodleId": "nova",
@@ -158,13 +160,13 @@ def test_pronunciation_loop_retries_advances_and_stops():
     assert response.status_code == 200
     data = response.json()
     assert data["teachingBoard"]["focusIndex"] == 0
-    assert data["teachingBoard"]["focusSyllable"] == "pro"
+    assert data["teachingBoard"]["focusSyllable"] == "pruh"
     assert "try again" in data["responseText"].lower()
 
     response = client.post(
         "/api/v1/companion/voice-turn",
         json={
-            "transcript": "pro",
+            "transcript": "pruh",
             "learnerName": "Demo",
             "learnerAge": 8,
             "doodleId": "nova",

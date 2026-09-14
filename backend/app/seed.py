@@ -20,9 +20,9 @@ LESSON_CHUNKS = [
         "topic": "pronunciation",
         "language": "en",
         "content": (
-            "The word pronunciation can be practiced as pro, nun, ci, a, tion. "
-            "The ci sound is often tricky, so highlight it and ask the learner to repeat "
-            "slowly before saying the full word."
+            "Teach the word pronunciation with sound-friendly chunks: pruh, nun, see, ay, shun. "
+            "Start with only pruh. Wait for the learner to attempt that sound before giving "
+            "feedback or moving to nun. Never praise an attempt before the learner speaks."
         ),
     },
     {
@@ -73,4 +73,8 @@ def seed_database(db: Session) -> None:
         )
         if existing is None:
             db.add(LessonChunk(**chunk))
+        else:
+            existing.topic = chunk["topic"]
+            existing.language = chunk["language"]
+            existing.content = chunk["content"]
     db.commit()

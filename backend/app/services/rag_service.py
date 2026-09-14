@@ -120,7 +120,7 @@ def extract_pronunciation_word(transcript: str) -> str:
 
 def simple_syllables(word: str) -> list[str]:
     known = {
-        "pronunciation": ["pro", "nun", "ci", "a", "tion"],
+        "pronunciation": ["pruh", "nun", "see", "ay", "shun"],
         "celebration": ["cel", "e", "bra", "tion"],
         "imagination": ["im", "ag", "i", "na", "tion"],
         "education": ["ed", "u", "ca", "tion"],
@@ -371,7 +371,7 @@ def generate_response(
     except LocalAIUnavailable:
         if intent == "pronunciation_help":
             return (
-                "Great question. Let us break pronunciation into small sound parts: pro, nun, ci, a, tion.",
+                "Let us practice pronunciation one sound at a time: pruh, nun, see, ay, shun. Start with pruh.",
                 "mock-rag",
             )
         return (

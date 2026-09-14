@@ -2,7 +2,6 @@ import { requestSpeechAudio } from "../services/companionApi.js";
 
 let activeAudio = null;
 let activeAudioUrl = "";
-let backendSpeechRetryAfter = 0;
 
 export function stopDoodleSpeech() {
   window.speechSynthesis?.cancel();
@@ -64,8 +63,9 @@ function playAudioBlob(blob) {
 
 export async function speakAsDoodle(text, voiceProfile = {}, doodle = null) {
   stopDoodleSpeech();
-  if (Date.now() < backendSpeechRetryAfter) {
-    return speakWithBrowser(text, voiceProfile);
+  const browserPlayed = await speakWithBrowser(text, voiceProfile);
+  if (browserPlayed) {
+    return true;
   }
 
   try {
@@ -77,13 +77,11 @@ export async function speakAsDoodle(text, voiceProfile = {}, doodle = null) {
     });
     const played = await playAudioBlob(audioBlob);
     if (played) {
-      backendSpeechRetryAfter = 0;
       return true;
     }
   } catch (error) {
     console.error("Doodle speech failed:", error);
   }
 
-  backendSpeechRetryAfter = Date.now() + 30_000;
-  return speakWithBrowser(text, voiceProfile);
+  return false;
 }
