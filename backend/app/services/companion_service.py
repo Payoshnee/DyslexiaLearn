@@ -131,9 +131,13 @@ def handle_voice_turn(
         intent = "quiz"
 
     context_chunks = []
-    retrieval_source = "mock-rag"
+    retrieval_source = "local-teaching-rule"
 
-    if db is not None:
+    # Pronunciation, quizzes, commands, and stats are deterministic teaching
+    # flows. Do not wake the remote embedding/chat model for these turns.
+    # This keeps them usable when a free Hugging Face Space is cold.
+    needs_llm_context = intent in {"general_help", "translation_help"}
+    if db is not None and needs_llm_context:
         context_chunks, retrieval_source = retrieve_context(db, transcript)
 
     response_text = ""
@@ -166,9 +170,7 @@ def handle_voice_turn(
         )
 
         if not score["passed"]:
-            response_text = (
-                f"I heard {transcript}. Let us try again. Say {focus_syllable} slowly."
-            )
+            response_text = f"Try again: {focus_syllable}."
             next_focus_index = focus_index
             next_focus_syllable = focus_syllable
             teaching_board = CompanionTeachingBoard(
@@ -186,9 +188,7 @@ def handle_voice_turn(
         elif focus_index < len(syllables) - 1:
             next_focus_index = focus_index + 1
             next_focus_syllable = syllables[next_focus_index]
-            response_text = (
-                f"I heard {transcript}. Good. Now say {next_focus_syllable} slowly."
-            )
+            response_text = f"Good. Your next sound is: {next_focus_syllable}."
             teaching_board = CompanionTeachingBoard(
                 type="syllables",
                 word=target_word,
@@ -202,9 +202,7 @@ def handle_voice_turn(
                 prompt=f"Now repeat {next_focus_syllable} slowly.",
             )
         else:
-            response_text = (
-                f"I heard {transcript}. Great work. You completed {target_word}."
-            )
+            response_text = f"Great work. You completed {target_word}."
             teaching_board = None
         generation_source = "local-pronunciation-score"
         state_sequence = (
@@ -241,11 +239,7 @@ def handle_voice_turn(
             "confidence_signal": "needs_support",
             "retrieved_chunks": [chunk.title for chunk in context_chunks],
         }
-        response_text = (
-            f"{payload.learner_name}, let us practice {target_word}. "
-            f"Break it into: {', '.join(syllables)}. "
-            f"Now repeat just {syllables[0]} slowly."
-        )
+        response_text = f"{payload.learner_name}, start with one sound: {syllables[0]}."
     elif intent == "quiz":
         quiz = build_quiz(transcript, current_board)
         if quiz.get("answered"):

@@ -2,9 +2,15 @@ import { requestSpeechAudio } from "../services/companionApi.js";
 
 let activeAudio = null;
 let activeAudioUrl = "";
+let activeSpeechRequest = null;
 
 export function stopDoodleSpeech() {
   window.speechSynthesis?.cancel();
+
+  if (activeSpeechRequest) {
+    activeSpeechRequest.abort();
+    activeSpeechRequest = null;
+  }
 
   if (activeAudio) {
     activeAudio.pause();
@@ -63,10 +69,8 @@ function playAudioBlob(blob) {
 
 export async function speakAsDoodle(text, voiceProfile = {}, doodle = null) {
   stopDoodleSpeech();
-  const browserPlayed = await speakWithBrowser(text, voiceProfile);
-  if (browserPlayed) {
-    return true;
-  }
+  const request = new AbortController();
+  activeSpeechRequest = request;
 
   try {
     const audioBlob = await requestSpeechAudio({
@@ -74,14 +78,18 @@ export async function speakAsDoodle(text, voiceProfile = {}, doodle = null) {
       doodleId: doodle?.id || voiceProfile.doodleId || "nova",
       voiceName: voiceProfile.ttsVoice,
       rate: voiceProfile.rate || 0.86,
-    });
+    }, { signal: request.signal });
+    if (request.signal.aborted) return false;
+    activeSpeechRequest = null;
     const played = await playAudioBlob(audioBlob);
     if (played) {
       return true;
     }
   } catch (error) {
-    console.error("Doodle speech failed:", error);
+    if (error?.name === "AbortError") return false;
+    console.error("Doodle Piper speech failed; using browser fallback:", error);
   }
 
-  return false;
+  if (activeSpeechRequest === request) activeSpeechRequest = null;
+  return speakWithBrowser(text, voiceProfile);
 }

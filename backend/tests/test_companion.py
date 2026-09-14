@@ -78,6 +78,7 @@ def test_voice_turn_returns_rag_ready_payload():
     assert data["teachingBoard"]["word"] == "pronunciation"
     assert data["teachingBoard"]["syllables"] == ["pruh", "nun", "see", "ay", "shun"]
     assert "great job" not in data["responseText"].lower()
+    assert data["responseText"] == "Demo, start with one sound: pruh."
     assert data["stateSequence"]
     assert data["memoryUpdate"]["future_pipeline"] == "local_stt_translation_rag_tts"
 
@@ -102,7 +103,7 @@ def test_pronunciation_help_uses_learner_name_and_target_word():
     assert data["teachingBoard"]["syllables"] == ["el", "e", "phant"]
     assert data["teachingBoard"]["focusIndex"] == 0
     assert data["teachingBoard"]["focusSyllable"] == "el"
-    assert data["responseText"].startswith("Himanshu, let us practice elephant.")
+    assert data["responseText"] == "Himanshu, start with one sound: el."
     assert "Hey Nova" not in data["responseText"]
     assert "nice job" not in data["responseText"].lower()
 
@@ -178,6 +179,7 @@ def test_pronunciation_loop_retries_advances_and_stops():
     data = response.json()
     assert data["teachingBoard"]["focusIndex"] == 1
     assert data["teachingBoard"]["focusSyllable"] == "nun"
+    assert data["responseText"] == "Good. Your next sound is: nun."
 
     response = client.post(
         "/api/v1/companion/voice-turn",

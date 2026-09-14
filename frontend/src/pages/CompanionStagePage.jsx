@@ -152,7 +152,12 @@ export default function CompanionStagePage() {
         setActiveSyllable(-1);
       } else if (state === COMPANION_STATES.SPEAKING) {
         setCompanionState(COMPANION_STATES.SPEAKING);
+        setMessage("Preparing my voice. This can take a minute when the free server is waking up...");
         await speak(result.responseText);
+        setMessage(result.responseText);
+      } else if (state === COMPANION_STATES.LISTENING) {
+        // Only Chrome's microphone onstart event may put the UI in listening mode.
+        setCompanionState(COMPANION_STATES.IDLE);
       } else {
         setCompanionState(state);
         await wait(state === COMPANION_STATES.PROCESSING ? 700 : 350);
@@ -217,6 +222,8 @@ export default function CompanionStagePage() {
             speech.startListening();
           }
         }, 700);
+      } else {
+        setCompanionState(COMPANION_STATES.IDLE);
       }
     } finally {
       voiceTurnRunningRef.current = false;

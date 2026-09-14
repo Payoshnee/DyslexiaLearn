@@ -18,9 +18,10 @@ export async function requestVoiceTurn(payload) {
   return response.json();
 }
 
-export async function requestSpeechAudio(payload) {
+export async function requestSpeechAudio(payload, { signal } = {}) {
   const response = await loggedFetch(`${API_BASE_URL}/api/v1/companion/speech`, {
     method: "POST",
+    signal,
     headers: {
       "Content-Type": "application/json",
     },
